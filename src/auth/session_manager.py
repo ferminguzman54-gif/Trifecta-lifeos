@@ -173,6 +173,11 @@ def _set_authenticated_state(
         weight_unit=weight_unit,
     )
     st.session_state["user_profile"] = profile
+    st.session_state["trifecta_weights"] = {
+        "habits": float(profile.get("weight_habits") or 40.0),
+        "workout": float(profile.get("weight_workouts") or 35.0),
+        "finance": float(profile.get("weight_finances") or 25.0),
+    }
 
     if cookie_manager is not None and refresh_token:
         expires_at = datetime.now(timezone.utc) + timedelta(days=COOKIE_EXPIRY_DAYS)

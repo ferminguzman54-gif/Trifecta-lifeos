@@ -11,7 +11,7 @@ import streamlit as st
 
 APP_NAME: str = "TRIFECTA LifeOS"
 APP_SUBTITLE: str = "Entrenamiento · Finanzas · Hábitos"
-APP_VERSION: str = "1.0.0-sprint1"
+APP_VERSION: str = "1.0.0"
 
 # Persistencia de sesión móvil en navegador (CookieManager)
 COOKIE_NAME: str = "trifecta_rt"

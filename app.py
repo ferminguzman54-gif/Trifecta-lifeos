@@ -1,4 +1,10 @@
-"""
+import os
+import sys
+
+# Forzar la inclusión del directorio raíz en el sys.path de Python
+ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)"""
 TRIFECTA LifeOS — Punto de entrada principal (Entrypoint para Streamlit Cloud)
 Arquitectura Mobile-First de alto contraste con Supabase Auth + RLS + Cookies.
 """
@@ -18,6 +24,7 @@ from src.views.auth_view import render_auth_view
 from src.views.finance_view import render_finance_view
 from src.views.habits_view import render_habits_view
 from src.views.hub_view import render_hub_view
+from src.views.settings_view import render_settings_view
 from src.views.workout_view import render_workout_view
 
 
@@ -46,17 +53,30 @@ def main() -> None:
     # 4. Barra de control superior de un toque (4 destinos principales) + Popover de perfil/logout
     active_pillar = render_mobile_header_and_nav(cookie_manager=cookie_manager)
 
-    # 5. Enrutamiento del pilar activo
-    if active_pillar == "hub":
-        render_hub_view()
-    elif active_pillar == "workout":
-        render_workout_view()
-    elif active_pillar == "finance":
-        render_finance_view()
-    elif active_pillar == "habits":
-        render_habits_view()
-    else:
-        render_hub_view()
+    # 5. Enrutamiento del pilar activo con manejo elegante de caídas de sesión
+    try:
+        if active_pillar == "hub":
+            render_hub_view()
+        elif active_pillar == "workout":
+            render_workout_view()
+        elif active_pillar == "finance":
+            render_finance_view()
+        elif active_pillar == "habits":
+            render_habits_view()
+        elif active_pillar == "settings":
+            render_settings_view()
+        else:
+            render_hub_view()
+    except Exception as exc:
+        err_txt = str(exc)
+        if "JWT" in err_txt or "expired" in err_txt.lower() or "PGRST301" in err_txt:
+            st.warning("Tu sesión expiró por inactividad. Reautenticando automáticamente...")
+            st.session_state["authenticated"] = False
+            st.rerun()
+        else:
+            st.error("Ocurrió un inconveniente temporal al renderizar la vista. Intenta recargar.")
+            if st.button("🔄 Recargar Vista", use_container_width=True):
+                st.rerun()
 
 
 if __name__ == "__main__":

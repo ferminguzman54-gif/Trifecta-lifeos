@@ -203,7 +203,8 @@ def render_hub_view() -> None:
     """Renderiza el Command Center Central con el Trifecta Score, Quick Actions, Resumen Dinámico y Analítica Cruzada."""
     profile = st.session_state.get("user_profile") or {}
     full_name = profile.get("full_name", "Usuario Trifecta")
-    first_name = str(full_name).split(" ")[0]
+    alias = (profile.get("alias") or "").strip()
+    first_name = alias if alias else str(full_name).split(" ")[0]
     currency = profile.get("preferred_currency", "MXN")
     weight_unit = profile.get("weight_unit", "kg")
     user_id = get_current_user_id() or ""
@@ -213,12 +214,12 @@ def render_hub_view() -> None:
         st.warning("Inicia sesión para cargar tu Command Center.")
         return
 
-    # Inicializar pesos configurables en session_state (por defecto: 40% Hábitos, 35% Entreno, 25% Finanzas)
+    # Inicializar pesos configurables en session_state desde el perfil del usuario (por defecto: 40/35/25)
     if "trifecta_weights" not in st.session_state:
         st.session_state["trifecta_weights"] = {
-            "habits": 40,
-            "workout": 35,
-            "finance": 25,
+            "habits": int(round(float(profile.get("weight_habits") or 40.0))),
+            "workout": int(round(float(profile.get("weight_workouts") or 35.0))),
+            "finance": int(round(float(profile.get("weight_finances") or 25.0))),
         }
     w_state = st.session_state["trifecta_weights"]
     weights_model = TrifectaWeights(

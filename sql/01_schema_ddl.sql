@@ -12,8 +12,13 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     email TEXT UNIQUE NOT NULL,
     full_name TEXT NOT NULL DEFAULT 'Usuario Trifecta',
+    alias TEXT NOT NULL DEFAULT '',
     preferred_currency TEXT NOT NULL DEFAULT 'MXN',
     weight_unit TEXT NOT NULL DEFAULT 'kg' CHECK (weight_unit IN ('kg', 'lb')),
+    date_format TEXT NOT NULL DEFAULT 'DD/MM/YYYY' CHECK (date_format IN ('DD/MM/YYYY', 'YYYY-MM-DD', 'MM/DD/YYYY')),
+    weight_habits NUMERIC(5,2) NOT NULL DEFAULT 40.00 CHECK (weight_habits BETWEEN 0 AND 100),
+    weight_workouts NUMERIC(5,2) NOT NULL DEFAULT 35.00 CHECK (weight_workouts BETWEEN 0 AND 100),
+    weight_finances NUMERIC(5,2) NOT NULL DEFAULT 25.00 CHECK (weight_finances BETWEEN 0 AND 100),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
