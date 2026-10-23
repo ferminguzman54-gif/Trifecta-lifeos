@@ -238,6 +238,8 @@ CREATE TABLE IF NOT EXISTS public.finance_accounts (
     cashback_pct NUMERIC(4,2) NOT NULL DEFAULT 0.00 CHECK (cashback_pct >= 0),
     annual_fee NUMERIC(10,2) NOT NULL DEFAULT 0.00,
     interest_rate_cat NUMERIC(5,2) DEFAULT 0.00,
+    minimum_payment_pct NUMERIC(4,2) NOT NULL DEFAULT 5.00 CHECK (minimum_payment_pct BETWEEN 1.00 AND 100.00),
+    grace_days INT NOT NULL DEFAULT 20 CHECK (grace_days BETWEEN 10 AND 35),
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -277,6 +279,7 @@ CREATE TABLE IF NOT EXISTS public.finance_transactions (
     cashback_earned NUMERIC(10,2) NOT NULL DEFAULT 0.00,
     tx_date DATE NOT NULL DEFAULT CURRENT_DATE,
     merchant_or_concept TEXT NOT NULL,
+    tags TEXT[] NOT NULL DEFAULT '{}',
     is_msi BOOLEAN NOT NULL DEFAULT FALSE,
     msi_months INT DEFAULT 1 CHECK (msi_months >= 1),
     notes TEXT DEFAULT '',
@@ -419,3 +422,33 @@ ALTER TABLE public.habit_logs ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "habit_logs_owner" ON public.habit_logs;
 CREATE POLICY "habit_logs_owner" ON public.habit_logs
     FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- ----------------------------------------------------------------------------
+-- 4. COMMAND CENTER HUB: SNAPSHOTS DIARIOS Y TRIFECTA SCORE (SPRINT 5)
+-- ----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS public.daily_life_snapshots (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    date DATE NOT NULL DEFAULT CURRENT_DATE,
+    habit_score NUMERIC(5,2) NOT NULL DEFAULT 0.00 CHECK (habit_score BETWEEN 0 AND 100),
+    workout_score NUMERIC(5,2) NOT NULL DEFAULT 0.00 CHECK (workout_score BETWEEN 0 AND 100),
+    finance_score NUMERIC(5,2) NOT NULL DEFAULT 0.00 CHECK (finance_score BETWEEN 0 AND 100),
+    workout_completed BOOLEAN NOT NULL DEFAULT FALSE,
+    budget_status TEXT NOT NULL DEFAULT 'OPTIMAL'
+        CHECK (budget_status IN ('OPTIMAL', 'WARNING', 'CRITICAL')),
+    trifecta_score NUMERIC(5,2) NOT NULL DEFAULT 0.00 CHECK (trifecta_score BETWEEN 0 AND 100),
+    metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (user_id, date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_daily_life_snapshots_user_date
+    ON public.daily_life_snapshots (user_id, date DESC);
+
+ALTER TABLE public.daily_life_snapshots ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "daily_life_snapshots_owner" ON public.daily_life_snapshots;
+CREATE POLICY "daily_life_snapshots_owner" ON public.daily_life_snapshots
+    FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+

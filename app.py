@@ -17,7 +17,7 @@ from src.config.theme import inject_global_theme
 from src.views.auth_view import render_auth_view
 from src.views.finance_view import render_finance_view
 from src.views.habits_view import render_habits_view
-from src.views.home_hub_view import render_home_hub_view
+from src.views.hub_view import render_hub_view
 from src.views.workout_view import render_workout_view
 
 
@@ -48,7 +48,7 @@ def main() -> None:
 
     # 5. Enrutamiento del pilar activo
     if active_pillar == "hub":
-        render_home_hub_view()
+        render_hub_view()
     elif active_pillar == "workout":
         render_workout_view()
     elif active_pillar == "finance":
@@ -56,7 +56,7 @@ def main() -> None:
     elif active_pillar == "habits":
         render_habits_view()
     else:
-        render_home_hub_view()
+        render_hub_view()
 
 
 if __name__ == "__main__":

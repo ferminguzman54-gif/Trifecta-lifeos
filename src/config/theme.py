@@ -72,21 +72,59 @@ html, body, [class*="css"] {
     color: #F8FAFC !important;
 }
 
-/* Reducción de márgenes muertos en pantallas móviles (04_UI_UX_Design_Brief.md §4) */
+/* Reducción de márgenes muertos en pantallas móviles y PWA (04_UI_UX_Design_Brief.md §4 + Sprint 5) */
 .block-container {
-    padding-top: 1.2rem !important;
-    padding-bottom: 4.5rem !important;
-    padding-left: 0.85rem !important;
-    padding-right: 0.85rem !important;
+    padding-top: 0.65rem !important;
+    padding-bottom: 3.5rem !important;
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
     max-width: 720px !important;
 }
 
-/* Ocultar decoración superior y pie de página por defecto de Streamlit */
+/* Ocultar elementos nativos de desarrollo de Streamlit para experiencia PWA limpia */
 header[data-testid="stHeader"] {
-    background: rgba(10, 13, 20, 0.85) !important;
-    backdrop-filter: blur(12px);
+    display: none !important;
+    height: 0px !important;
 }
-footer {visibility: hidden;}
+#MainMenu,
+.stDeployButton,
+div[data-testid="stToolbar"],
+div[data-testid="stDecoration"],
+div[data-testid="stStatusWidget"],
+footer {
+    display: none !important;
+    visibility: hidden !important;
+}
+
+/* Scrollbar sutil de alto contraste */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: #0A0D14;
+}
+::-webkit-scrollbar-thumb {
+    background: #263044;
+    border-radius: 999px;
+}
+
+/* Tarjeta Hero del Trifecta Score (Sprint 5) */
+.trifecta-hero-card {
+    background: radial-gradient(circle at top right, rgba(59, 130, 246, 0.18), rgba(18, 23, 34, 0.98) 68%);
+    border: 1px solid #2E3C56;
+    border-radius: 20px;
+    padding: 18px;
+    margin-bottom: 12px;
+    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.50);
+}
+.trifecta-quick-dock {
+    background: linear-gradient(135deg, rgba(18, 23, 34, 0.96) 0%, rgba(26, 34, 50, 0.96) 100%);
+    border: 1px solid #334155;
+    border-radius: 16px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+}
 
 /* Jerarquía tipográfica móvil (04_UI_UX_Design_Brief.md §2) */
 h1 {
@@ -271,8 +309,13 @@ button[data-baseweb="tab"] {
 
 
 def inject_global_theme() -> None:
-    """Inyecta la hoja de estilos CSS de alto contraste en el contenedor actual de Streamlit."""
+    """Inyecta la hoja de estilos CSS de alto contraste y los meta-tags PWA en Streamlit."""
     st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
+    try:
+        from src.components.pwa_head import inject_pwa_metadata
+        inject_pwa_metadata()
+    except Exception:
+        pass
 
 
 def render_pillar_header(title: str, subtitle: str, accent_hex: str, badge_text: str) -> None:
