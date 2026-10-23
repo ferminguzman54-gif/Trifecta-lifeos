@@ -8,11 +8,6 @@ ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
-"""
-TRIFECTA LifeOS Punto de entrada principal (Entrypoint para Streamlit Cloud)
-Arquitectura Mobile-First de alto contraste con Supabase Auth + RLS + Cookies.
-"""
-
 import streamlit as st
 
 from src.auth.session_manager import (
