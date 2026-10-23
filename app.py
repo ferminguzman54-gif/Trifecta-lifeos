@@ -1,12 +1,12 @@
 from __future__ import annotations
 
+import os
 import sys
-from pathlib import Path
 
-# Inyectar la raíz del proyecto para resolver el paquete 'src' en Streamlit Cloud
-ROOT_DIR = Path(__file__).resolve().parent
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
+# Inyectar la raíz del proyecto para que Streamlit Cloud encuentre 'src'
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
 
 import streamlit as st
 
