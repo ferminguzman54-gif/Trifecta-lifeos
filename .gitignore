@@ -1,0 +1,27 @@
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Streamlit secrets (NUNCA subir llaves privadas o tokens al repositorio)
+.streamlit/secrets.toml
+
+# Environment variables
+.env
+.env.local
+
+# OS & IDE files
+.DS_Store
+Thumbs立.db
+Thumbs.db
+.vscode/
+.idea/

@@ -1,0 +1,9 @@
+streamlit>=1.38.0
+supabase>=2.7.0
+extra-streamlit-components>=0.1.71
+pandas>=2.2.0
+numpy>=1.26.0
+plotly>=5.24.0
+pydantic>=2.8.0
+pdfplumber>=0.11.4
+python-dateutil>=2.9.0
