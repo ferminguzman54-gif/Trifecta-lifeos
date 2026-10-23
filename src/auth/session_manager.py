@@ -11,8 +11,8 @@ from typing import Any, Dict, Optional, Tuple
 import extra_streamlit_components as stx
 import streamlit as st
 
-from src.auth.supabase_client import get_supabase_client
-from src.config.settings import (
+from .supabase_client import get_supabase_client
+from ..config.settings import (
     COOKIE_EXPIRY_DAYS,
     COOKIE_NAME,
     DEFAULT_FINANCE_CATEGORIES,
