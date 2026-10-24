@@ -14,7 +14,6 @@ import streamlit as st
 
 from src.auth.session_manager import get_current_user_id
 from src.components.chart_builders import apply_mobile_dark_layout, render_mobile_plotly
-from src.components.kpi_cards import render_kpi_card
 from src.components.rest_timer_widget import render_client_rest_timer
 from src.config.settings import MUSCLE_LABELS
 from src.config.theme import PALETTE, render_pillar_header
@@ -48,6 +47,32 @@ from src.services.progression_engine import (
 # ============================================================================
 # 1. ESTADO DE SESIÓN EN VIVO (st.session_state["active_workout"])
 # ============================================================================
+
+def render_kpi_card(
+    label: str,
+    value: str,
+    delta_text: str = "",
+    delta_positive: bool = True,
+    accent_color: str = "#3B82F6",
+) -> None:
+    """Tarjeta KPI. El HTML va pegado a la columna 0 para que Markdown no lo trate como bloque de código."""
+    d_col = "#10B981" if delta_positive else "#EF4444"
+    delta_html = (
+        f'<div style="display:inline-block; margin-top:6px; padding:2px 8px; border-radius:999px; font-size:0.70rem; font-weight:700; white-space:nowrap; color:{d_col}; background:{d_col}1F; border:1px solid {d_col}55;">{delta_text}</div>'
+        if delta_text
+        else ""
+    )
+    st.markdown(
+f"""
+<div style="background:#121722; border:1px solid #263044; border-left:4px solid {accent_color}; border-radius:12px; padding:10px 12px; margin-bottom:6px;">
+<div style="font-size:0.68rem; color:#94A3B8; text-transform:uppercase; letter-spacing:0.05em;">{label}</div>
+<div class="trifecta-kpi-value" style="font-size:1.35rem; font-weight:800; color:#F8FAFC; margin-top:4px;">{value}</div>
+{delta_html}
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
 
 def _start_active_workout(
     routine: Optional[Dict[str, Any]],
@@ -762,20 +787,17 @@ def _render_workout_analytics_fragment(
             else "Datos en acumulación"
         )
         st.markdown(
-            f"""
-            <div style="
-                background:#1A2232; border:1px solid #263044; border-left:4px solid #06B6D4;
-                border-radius:12px; padding:10px 12px; margin-bottom:8px;
-            ">
-                <div style="display:flex; justify-content:space-between; font-size:0.78rem; color:#94A3B8;">
-                    <span>Cumplimiento de Descanso: <b style="color:#F8FAFC;">{rest_metrics.rest_compliance_pct:.0f}%</b></span>
-                    <span>Correlación Descanso vs. RPE: <b style="color:#06B6D4;">{corr_str}</b></span>
-                </div>
-                <div style="font-size:0.83rem; color:#F8FAFC; margin-top:5px;">
-                    🧠 {rest_metrics.correlation_insight}
-                </div>
-            </div>
-            """,
+f"""
+<div style="background:#1A2232; border:1px solid #263044; border-left:4px solid #06B6D4; border-radius:12px; padding:10px 12px; margin-bottom:8px;">
+<div style="display:flex; justify-content:space-between; font-size:0.78rem; color:#94A3B8;">
+<span>Cumplimiento de Descanso: <b style="color:#F8FAFC;">{rest_metrics.rest_compliance_pct:.0f}%</b></span>
+<span>Correlación Descanso vs. RPE: <b style="color:#06B6D4;">{corr_str}</b></span>
+</div>
+<div style="font-size:0.83rem; color:#F8FAFC; margin-top:5px;">
+🧠 {rest_metrics.correlation_insight}
+</div>
+</div>
+""",
             unsafe_allow_html=True,
         )
 

@@ -622,28 +622,28 @@ def _render_daily_habits_fragment(
 
         with st.container(border=True):
             st.markdown(
-                f"""
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; gap:8px;">
-                    <div>
-                        <div style="display:flex; align-items:center; flex-wrap:wrap;">
-                            <span style="
-                                display:inline-flex; align-items:center; justify-content:center;
-                                width:28px; height:28px; border-radius:8px;
-                                background:{h_color}26; border:1px solid {h_color}66;
-                                margin-right:8px; font-size:0.95rem;
-                            ">{h_icon}</span>
-                            <span style="font-weight:700; font-size:1.02rem; color:#F8FAFC;">{h_name}</span>
-                            {pin_badge}
-                        </div>
-                        {goal_badge}
-                    </div>
-                    <span style="
-                        font-size:0.72rem; font-weight:700; color:{st_color};
-                        background:{st_color}1F; border:1px solid {st_color}4D;
-                        padding:3px 9px; border-radius:999px; white-space:nowrap;
-                    ">{status_pill_display}</span>
-                </div>
-                """,
+f"""
+<div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; gap:8px;">
+<div>
+<div style="display:flex; align-items:center; flex-wrap:wrap;">
+<span style="
+display:inline-flex; align-items:center; justify-content:center;
+width:28px; height:28px; border-radius:8px;
+background:{h_color}26; border:1px solid {h_color}66;
+margin-right:8px; font-size:0.95rem;
+">{h_icon}</span>
+<span style="font-weight:700; font-size:1.02rem; color:#F8FAFC;">{h_name}</span>
+{pin_badge}
+</div>
+{goal_badge}
+</div>
+<span style="
+font-size:0.72rem; font-weight:700; color:{st_color};
+background:{st_color}1F; border:1px solid {st_color}4D;
+padding:3px 9px; border-radius:999px; white-space:nowrap;
+">{status_pill_display}</span>
+</div>
+""",
                 unsafe_allow_html=True,
             )
 
