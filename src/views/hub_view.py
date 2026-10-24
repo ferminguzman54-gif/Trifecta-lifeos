@@ -431,18 +431,18 @@ def render_hub_view() -> None:
         analytics_map = {str(h["id"]): calculate_habit_analytics(h, habit_logs) for h in habits}
         st.markdown(
             f"""
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                <span class="trifecta-pillar-pill" style="background:#8B5CF626; color:#A78BFA; border:1px solid #8B5CF655;">
-                    🎯 Hábitos de la Jornada
-                </span>
-                <span class="trifecta-kpi-value" style="font-size:0.80rem; color:#F8FAFC;">
-                    {pulse.habits_completed_today}/{pulse.habits_total_active} completados · {pulse.habits_partial_today} parciales ({pulse.habit_score:.0f}%)
-                </span>
-            </div>
-            <div style="width:100%; height:8px; background:rgba(255,255,255,0.08); border-radius:999px; margin-bottom:10px; overflow:hidden;">
-                <div style="width:{min(100.0, pulse.habit_score):.1f}%; height:100%; background:linear-gradient(90deg, #8B5CF6, #10B981); border-radius:999px;"></div>
-            </div>
-            """,
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+<span class="trifecta-pillar-pill" style="background:#8B5CF626; color:#A78BFA; border:1px solid #8B5CF655;">
+🎯 Hábitos de la Jornada
+</span>
+<span class="trifecta-kpi-value" style="font-size:0.80rem; color:#F8FAFC;">
+{pulse.habits_completed_today}/{pulse.habits_total_active} completados · {pulse.habits_partial_today} parciales ({pulse.habit_score:.0f}%)
+</span>
+</div>
+<div style="width:100%; height:8px; background:rgba(255,255,255,0.08); border-radius:999px; margin-bottom:10px; overflow:hidden;">
+<div style="width:{min(100.0, pulse.habit_score):.1f}%; height:100%; background:linear-gradient(90deg, #8B5CF6, #10B981); border-radius:999px;"></div>
+</div>
+""",
             unsafe_allow_html=True,
         )
 
@@ -572,28 +572,28 @@ def render_hub_view() -> None:
 
         col_f1, col_f2, col_f3 = st.columns(3)
         with col_f1:
-            render_kpi_card(
-                label="Saldo Consolidado",
-                value=f"${pulse.liquid_balance:,.0f}",
-                delta_text=f"Deuda TDC: ${pulse.cc_debt:,.0f}",
-                delta_positive=(pulse.liquid_balance >= pulse.cc_debt),
-                accent_color=PALETTE["accent_finance"],
+render_kpi_card(
+label="Saldo Consolidado",
+value=f"${pulse.liquid_balance:,.0f}",
+delta_text=f"Deuda TDC: ${pulse.cc_debt:,.0f}",
+delta_positive=(pulse.liquid_balance >= pulse.cc_debt),
+accent_color=PALETTE["accent_finance"],
             )
         with col_f2:
-            render_kpi_card(
-                label="Gasto de Hoy",
-                value=f"${pulse.today_expenses_amount:,.0f}",
-                delta_text=f"Moneda: {currency}",
-                delta_positive=(pulse.today_expenses_amount == 0),
-                accent_color="#38BDF8" if pulse.today_expenses_amount == 0 else "#F59E0B",
+render_kpi_card(
+label="Gasto de Hoy",
+value=f"${pulse.today_expenses_amount:,.0f}",
+delta_text=f"Moneda: {currency}",
+delta_positive=(pulse.today_expenses_amount == 0),
+accent_color="#38BDF8" if pulse.today_expenses_amount == 0 else "#F59E0B",
             )
         with col_f3:
-            render_kpi_card(
-                label="Presupuesto Libre",
-                value=f"${pulse.budget_remaining_total:,.0f}",
-                delta_text=f"{pulse.budget_used_pct:.1f}% usado este mes",
-                delta_positive=(pulse.budget_used_pct <= 85.0),
-                accent_color=b_badge_col,
+render_kpi_card(
+label="Presupuesto Libre",
+value=f"${pulse.budget_remaining_total:,.0f}",
+delta_text=f"{pulse.budget_used_pct:.1f}% usado este mes",
+delta_positive=(pulse.budget_used_pct <= 85.0),
+accent_color=b_badge_col,
             )
 
         st.markdown(
@@ -644,20 +644,20 @@ def render_hub_view() -> None:
 
         c_k1, c_k2 = st.columns(2)
         with c_k1:
-            render_kpi_card(
-                label="Promedio Semanal (7D)",
-                value=f"{consistency_data['avg_trifecta_7d']:.1f} pts",
-                delta_text=f"{consistency_data['avg_trifecta_7d'] - consistency_data['avg_trifecta_30d']:+.1f} vs 30D",
-                delta_positive=(consistency_data["avg_trifecta_7d"] >= consistency_data["avg_trifecta_30d"]),
-                accent_color="#3B82F6",
+render_kpi_card(
+label="Promedio Semanal (7D)",
+value=f"{consistency_data['avg_trifecta_7d']:.1f} pts",
+delta_text=f"{consistency_data['avg_trifecta_7d'] - consistency_data['avg_trifecta_30d']:+.1f} vs 30D",
+delta_positive=(consistency_data["avg_trifecta_7d"] >= consistency_data["avg_trifecta_30d"]),
+accent_color="#3B82F6",
             )
         with c_k2:
-            render_kpi_card(
-                label="Promedio Mensual (30D)",
-                value=f"{consistency_data['avg_trifecta_30d']:.1f} pts",
-                delta_text=f"Racha activa: {pulse.consistency_streak_days}d",
-                delta_positive=(consistency_data["avg_trifecta_30d"] >= 70.0),
-                accent_color="#10B981",
+render_kpi_card(
+label="Promedio Mensual (30D)",
+value=f"{consistency_data['avg_trifecta_30d']:.1f} pts",
+delta_text=f"Racha activa: {pulse.consistency_streak_days}d",
+delta_positive=(consistency_data["avg_trifecta_30d"] >= 70.0),
+accent_color="#10B981",
             )
 
         if sliced_series:
