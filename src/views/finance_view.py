@@ -185,16 +185,16 @@ def _open_new_transaction_dialog(
                     )
                     st.markdown(
                         f"""
-                        <div style="background:#1A202F; border:1px solid #263044; border-radius:8px; padding:8px 10px; margin-bottom:8px;">
-                            <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#94A3B8; margin-bottom:4px;">
-                                <span>Presupuesto {match_cat['name']} tras compra:</span>
-                                <span style="color:{bar_color}; font-weight:700;">${projected_spent:,.0f} / ${b_limit:,.0f} ({proj_pct:.1f}%)</span>
-                            </div>
-                            <div style="width:100%; height:6px; background:rgba(255,255,255,0.08); border-radius:999px; overflow:hidden;">
-                                <div style="width:{min(100.0, proj_pct):.1f}%; height:100%; background:{bar_color};"></div>
-                            </div>
-                        </div>
-                        """,
+<div style="background:#1A202F; border:1px solid #263044; border-radius:8px; padding:8px 10px; margin-bottom:8px;">
+<div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#94A3B8; margin-bottom:4px;">
+<span>Presupuesto {match_cat['name']} tras compra:</span>
+<span style="color:{bar_color}; font-weight:700;">${projected_spent:,.0f} / ${b_limit:,.0f} ({proj_pct:.1f}%)</span>
+</div>
+<div style="width:100%; height:6px; background:rgba(255,255,255,0.08); border-radius:999px; overflow:hidden;">
+<div style="width:{min(100.0, proj_pct):.1f}%; height:100%; background:{bar_color};"></div>
+</div>
+</div>
+""",
                         unsafe_allow_html=True,
                     )
 
@@ -522,7 +522,7 @@ Compara tus tarjetas activas ponderando: <b>45% Días de financiamiento post-cor
 <b>25% Cashback</b> · <b>20% Salud de utilización (&le;30%)</b> · <b>10% Presupuesto de categoría</b>.
 </div>
 </div>
-        """,
+""",
         unsafe_allow_html=True,
     )
 
@@ -597,7 +597,7 @@ Compara tus tarjetas activas ponderando: <b>45% Días de financiamiento post-cor
 
     st.markdown(
         f"""
-        <div style="background:linear-gradient(145deg, #121722 0%, #192234 100%);
+<div style="background:linear-gradient(145deg, #121722 0%, #192234 100%);
 border:2px solid {win_border}; border-radius:14px; padding:16px; margin:8px 0 12px 0;
 box-shadow:0 10px 26px rgba(0,0,0,0.45);">
 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
@@ -655,16 +655,16 @@ unsafe_allow_html=True,
     for tip_card in cutoff_tips:
         st.markdown(
             f"""
-            <div style="background:rgba(245,158,11,0.14); border:1px solid rgba(245,158,11,0.45);
-                        border-radius:10px; padding:10px 12px; margin-bottom:10px;">
-                <div style="font-size:0.76rem; font-weight:700; color:#F59E0B;">
-                    ⚡ ALERTA DE DÍA ÓPTIMO DE COMPRA · {tip_card.card_name}
-                </div>
-                <div style="font-size:0.80rem; color:#FDE68A; margin-top:2px;">
-                    {tip_card.wait_for_cutoff_tip}
-                </div>
-            </div>
-            """,
+<div style="background:rgba(245,158,11,0.14); border:1px solid rgba(245,158,11,0.45);
+border-radius:10px; padding:10px 12px; margin-bottom:10px;">
+<div style="font-size:0.76rem; font-weight:700; color:#F59E0B;">
+⚡ ALERTA DE DÍA ÓPTIMO DE COMPRA · {tip_card.card_name}
+</div>
+<div style="font-size:0.80rem; color:#FDE68A; margin-top:2px;">
+{tip_card.wait_for_cutoff_tip}
+</div>
+</div>
+""",
             unsafe_allow_html=True,
         )
 
@@ -694,7 +694,7 @@ Cashback +${rec.cashback_earned:,.2f} · Utilización {rec.utilization_after_pct
 <div style="font-size:0.68rem; color:#64748B;">/ 100</div>
 </div>
 </div>
-                    """,
+""",
                     unsafe_allow_html=True,
                 )
 
@@ -712,16 +712,16 @@ def _render_amortization_and_minimum_payment_simulator_fragment(
     """
     st.markdown(
         """
-        <div style="background:rgba(59,130,246,0.10); border:1px solid rgba(59,130,246,0.35);
-                    border-radius:12px; padding:12px 14px; margin:16px 0 12px 0;">
-            <div style="font-size:0.78rem; font-weight:700; color:#38BDF8; text-transform:uppercase; letter-spacing:0.05em;">
-                📉 Simulador de Pago para No Generar Intereses, Pago Mínimo y Amortización
-            </div>
-            <div style="font-size:0.82rem; color:#94A3B8; margin-top:2px;">
-                Conoce el costo real del interés compuesto en tu TDC y proyecta tu tabla de liquidación.
-            </div>
-        </div>
-        """,
+<div style="background:rgba(59,130,246,0.10); border:1px solid rgba(59,130,246,0.35);
+border-radius:12px; padding:12px 14px; margin:16px 0 12px 0;">
+<div style="font-size:0.78rem; font-weight:700; color:#38BDF8; text-transform:uppercase; letter-spacing:0.05em;">
+📉 Simulador de Pago para No Generar Intereses, Pago Mínimo y Amortización
+</div>
+<div style="font-size:0.82rem; color:#94A3B8; margin-top:2px;">
+Conoce el costo real del interés compuesto en tu TDC y proyecta tu tabla de liquidación.
+</div>
+</div>
+""",
         unsafe_allow_html=True,
     )
 
@@ -918,15 +918,15 @@ def render_finance_view() -> None:
         with st.container(border=True):
             st.markdown(
                 """
-                <div style="font-size:0.95rem; font-weight:700; color:#F8FAFC; margin-bottom:4px;">
-                    👋 Tu Billetera Digital está vacía
-                </div>
-                <div style="font-size:0.82rem; color:#94A3B8; margin-bottom:10px;">
-                    Puedes agregar tus cuentas manualmente con el botón <b>💳 + Cuenta / TDC</b> o inicializar
-                    en 1 toque una billetera de prueba con 1 Cuenta de Débito y 2 Tarjetas de Crédito con distintas
-                    fechas de corte para probar de inmediato el Simulador Inteligente.
-                </div>
-                """,
+<div style="font-size:0.95rem; font-weight:700; color:#F8FAFC; margin-bottom:4px;">
+👋 Tu Billetera Digital está vacía
+</div>
+<div style="font-size:0.82rem; color:#94A3B8; margin-bottom:10px;">
+Puedes agregar tus cuentas manualmente con el botón <b>💳 + Cuenta / TDC</b> o inicializar
+en 1 toque una billetera de prueba con 1 Cuenta de Débito y 2 Tarjetas de Crédito con distintas
+fechas de corte para probar de inmediato el Simulador Inteligente.
+</div>
+""",
                 unsafe_allow_html=True,
             )
             if st.button(
@@ -1139,21 +1139,21 @@ account_type="credit_card",
 
                 st.markdown(
                     f"""
-                    <div style="background:#121722; border:1px solid #263044; border-radius:10px;
-                                padding:10px 12px; margin-bottom:8px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                            <span style="font-size:0.86rem; font-weight:700; color:#F8FAFC;">
-                                {row['icon']} {row['name']}
-                            </span>
-                            <span style="font-size:0.74rem; color:{bar_col}; font-weight:700;">
-                                {badge_alert} · ${spent:,.0f} / ${limit_v:,.0f} ({pct_v:.1f}%)
-                            </span>
-                        </div>
-                        <div style="width:100%; height:7px; background:rgba(255,255,255,0.08); border-radius:999px; overflow:hidden;">
-                            <div style="width:{min(100.0, pct_v):.1f}%; height:100%; background:{bar_col}; border-radius:999px;"></div>
-                        </div>
-                    </div>
-                    """,
+<div style="background:#121722; border:1px solid #263044; border-radius:10px;
+padding:10px 12px; margin-bottom:8px;">
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+<span style="font-size:0.86rem; font-weight:700; color:#F8FAFC;">
+{row['icon']} {row['name']}
+</span>
+<span style="font-size:0.74rem; color:{bar_col}; font-weight:700;">
+{badge_alert} · ${spent:,.0f} / ${limit_v:,.0f} ({pct_v:.1f}%)
+</span>
+</div>
+<div style="width:100%; height:7px; background:rgba(255,255,255,0.08); border-radius:999px; overflow:hidden;">
+<div style="width:{min(100.0, pct_v):.1f}%; height:100%; background:{bar_col}; border-radius:999px;"></div>
+</div>
+</div>
+""",
                     unsafe_allow_html=True,
                 )
 
@@ -1241,22 +1241,22 @@ account_type="credit_card",
                 with col_tx_card:
                     st.markdown(
                         f"""
-                        <div style="background:#121722; border:1px solid #263044; border-radius:10px;
-                                    padding:10px 12px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
-                            <div>
-                                <div style="font-size:0.88rem; font-weight:700; color:#F8FAFC;">
-                                    {cat_icon} {concept} {msi_badge} {cb_badge}
-                                </div>
-                                <div style="font-size:0.74rem; color:#94A3B8; margin-top:2px;">
-                                    {tx.get('tx_date')} · <b>{acc_name}</b> · {cat_name}
-                                </div>
-                                <div style="margin-top:4px;">{tags_html}</div>
-                            </div>
-                            <div style="font-family:'JetBrains Mono', monospace; font-size:0.98rem; font-weight:700; color:{amt_color};">
-                                {amt_prefix}${amt:,.2f}
-                            </div>
-                        </div>
-                        """,
+<div style="background:#121722; border:1px solid #263044; border-radius:10px;
+padding:10px 12px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
+<div>
+<div style="font-size:0.88rem; font-weight:700; color:#F8FAFC;">
+{cat_icon} {concept} {msi_badge} {cb_badge}
+</div>
+<div style="font-size:0.74rem; color:#94A3B8; margin-top:2px;">
+{tx.get('tx_date')} · <b>{acc_name}</b> · {cat_name}
+</div>
+<div style="margin-top:4px;">{tags_html}</div>
+</div>
+<div style="font-family:'JetBrains Mono', monospace; font-size:0.98rem; font-weight:700; color:{amt_color};">
+{amt_prefix}${amt:,.2f}
+</div>
+</div>
+""",
                         unsafe_allow_html=True,
                     )
                 with col_tx_del:
@@ -1311,19 +1311,19 @@ account_type="credit_card",
                 when_txt = "HOY" if d_left == 0 else f"En {d_left} día(s)"
                 st.markdown(
                     f"""
-                    <div style="background:#121722; border-left:4px solid {up_col}; border-top:1px solid #263044;
-                                border-right:1px solid #263044; border-bottom:1px solid #263044;
-                                border-radius:10px; padding:8px 12px; margin-bottom:6px;
-                                display:flex; justify-content:space-between; align-items:center;">
-                        <div>
-                            <span style="font-size:0.70rem; font-weight:700; color:{up_col};">{up['badge']} · {when_txt}</span>
-                            <div style="font-size:0.86rem; font-weight:700; color:#F8FAFC;">{up['title']}</div>
-                        </div>
-                        <div style="font-family:'JetBrains Mono', monospace; font-size:0.88rem; font-weight:700; color:#F8FAFC;">
-                            ${float(up.get('amount') or 0):,.2f}
-                        </div>
-                    </div>
-                    """,
+<div style="background:#121722; border-left:4px solid {up_col}; border-top:1px solid #263044;
+border-right:1px solid #263044; border-bottom:1px solid #263044;
+border-radius:10px; padding:8px 12px; margin-bottom:6px;
+display:flex; justify-content:space-between; align-items:center;">
+<div>
+<span style="font-size:0.70rem; font-weight:700; color:{up_col};">{up['badge']} · {when_txt}</span>
+<div style="font-size:0.86rem; font-weight:700; color:#F8FAFC;">{up['title']}</div>
+</div>
+<div style="font-family:'JetBrains Mono', monospace; font-size:0.88rem; font-weight:700; color:#F8FAFC;">
+${float(up.get('amount') or 0):,.2f}
+</div>
+</div>
+""",
                     unsafe_allow_html=True,
                 )
 
@@ -1396,23 +1396,23 @@ account_type="credit_card",
                 amt_val = float(ev.get("amount") or 0.0)
                 st.markdown(
                     f"""
-                    <div style="background:#121722; border-left:4px solid {ev_col}; border-top:1px solid #263044;
-                                border-right:1px solid #263044; border-bottom:1px solid #263044;
-                                border-radius:10px; padding:10px 12px; margin-bottom:7px;
-                                display:flex; justify-content:space-between; align-items:center;">
-                        <div>
-                            <div style="font-size:0.86rem; font-weight:700; color:#F8FAFC;">
-                                {ev['badge']} · {ev['title']}
-                            </div>
-                            <div style="font-size:0.74rem; color:#94A3B8;">
-                                📅 {ev['event_date'].strftime('%d/%b/%Y')} · {ev['subtitle']}
-                            </div>
-                        </div>
-                        <div style="font-family:'JetBrains Mono', monospace; font-size:0.88rem; font-weight:700; color:{ev_col};">
-                            ${amt_val:,.2f}
-                        </div>
-                    </div>
-                    """,
+<div style="background:#121722; border-left:4px solid {ev_col}; border-top:1px solid #263044;
+border-right:1px solid #263044; border-bottom:1px solid #263044;
+border-radius:10px; padding:10px 12px; margin-bottom:7px;
+display:flex; justify-content:space-between; align-items:center;">
+<div>
+<div style="font-size:0.86rem; font-weight:700; color:#F8FAFC;">
+{ev['badge']} · {ev['title']}
+</div>
+<div style="font-size:0.74rem; color:#94A3B8;">
+📅 {ev['event_date'].strftime('%d/%b/%Y')} · {ev['subtitle']}
+</div>
+</div>
+<div style="font-family:'JetBrains Mono', monospace; font-size:0.88rem; font-weight:700; color:{ev_col};">
+${amt_val:,.2f}
+</div>
+</div>
+""",
                     unsafe_allow_html=True,
                 )
 
@@ -1434,15 +1434,15 @@ account_type="credit_card",
 
             st.markdown(
                 f"""
-                <div style="background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.35);
-                            border-radius:10px; padding:10px 12px; margin-bottom:10px;
-                            display:flex; justify-content:space-between; align-items:center;">
-                    <span style="font-size:0.82rem; color:#DDD6FE;">Costo mensualizado de suscripciones fijas:</span>
-                    <span style="font-family:'JetBrains Mono', monospace; font-size:0.95rem; font-weight:700; color:#A78BFA;">
-                        ${monthly_fixed_total:,.2f} / mes (${monthly_fixed_total * 12:,.0f} / año)
-                    </span>
-                </div>
-                """,
+<div style="background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.35);
+border-radius:10px; padding:10px 12px; margin-bottom:10px;
+display:flex; justify-content:space-between; align-items:center;">
+<span style="font-size:0.82rem; color:#DDD6FE;">Costo mensualizado de suscripciones fijas:</span>
+<span style="font-family:'JetBrains Mono', monospace; font-size:0.95rem; font-weight:700; color:#A78BFA;">
+${monthly_fixed_total:,.2f} / mes (${monthly_fixed_total * 12:,.0f} / año)
+</span>
+</div>
+""",
                 unsafe_allow_html=True,
             )
 
@@ -1455,17 +1455,17 @@ account_type="credit_card",
                 with c1:
                     st.markdown(
                         f"""
-                        <div style="background:#121722; border:1px solid #263044; border-radius:10px;
-                                    padding:9px 12px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
-                            <div>
-                                <div style="font-size:0.86rem; font-weight:700; color:#F8FAFC;">🟣 {s_name}</div>
-                                <div style="font-size:0.74rem; color:#94A3B8;">Día {s_day} de cada mes ({BILLING_CYCLE_LABELS.get(str(sub.get('billing_cycle')), 'Mensual')})</div>
-                            </div>
-                            <div style="font-family:'JetBrains Mono', monospace; font-size:0.92rem; font-weight:700; color:#A78BFA;">
-                                ${s_amt:,.2f}
-                            </div>
-                        </div>
-                        """,
+<div style="background:#121722; border:1px solid #263044; border-radius:10px;
+padding:9px 12px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
+<div>
+<div style="font-size:0.86rem; font-weight:700; color:#F8FAFC;">🟣 {s_name}</div>
+<div style="font-size:0.74rem; color:#94A3B8;">Día {s_day} de cada mes ({BILLING_CYCLE_LABELS.get(str(sub.get('billing_cycle')), 'Mensual')})</div>
+</div>
+<div style="font-family:'JetBrains Mono', monospace; font-size:0.92rem; font-weight:700; color:#A78BFA;">
+${s_amt:,.2f}
+</div>
+</div>
+""",
                         unsafe_allow_html=True,
                     )
                 with c2:
