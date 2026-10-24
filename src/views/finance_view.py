@@ -512,16 +512,16 @@ def _render_card_advisor_simulator_fragment(
     """
     st.markdown(
         """
-        <div style="background:rgba(16,185,129,0.10); border:1px solid rgba(16,185,129,0.35);
-                    border-radius:12px; padding:12px 14px; margin-bottom:12px;">
-            <div style="font-size:0.78rem; font-weight:700; color:#10B981; text-transform:uppercase; letter-spacing:0.05em;">
-                🧠 Motor Algorítmico · ¿Con qué tarjeta pago hoy?
-            </div>
-            <div style="font-size:0.82rem; color:#94A3B8; margin-top:2px;">
-                Compara tus tarjetas activas ponderando: <b>45% Días de financiamiento post-corte</b> ·
-                <b>25% Cashback</b> · <b>20% Salud de utilización (&le;30%)</b> · <b>10% Presupuesto de categoría</b>.
-            </div>
-        </div>
+<div style="background:rgba(16,185,129,0.10); border:1px solid rgba(16,185,129,0.35);
+border-radius:12px; padding:12px 14px; margin-bottom:12px;">
+<div style="font-size:0.78rem; font-weight:700; color:#10B981; text-transform:uppercase; letter-spacing:0.05em;">
+🧠 Motor Algorítmico · ¿Con qué tarjeta pago hoy?
+</div>
+<div style="font-size:0.82rem; color:#94A3B8; margin-top:2px;">
+Compara tus tarjetas activas ponderando: <b>45% Días de financiamiento post-corte</b> ·
+<b>25% Cashback</b> · <b>20% Salud de utilización (&le;30%)</b> · <b>10% Presupuesto de categoría</b>.
+</div>
+</div>
         """,
         unsafe_allow_html=True,
     )
@@ -675,25 +675,25 @@ unsafe_allow_html=True,
                 score_txt = f"{rec.total_score:.1f} pts" if rec.is_eligible else "Excede línea"
                 st.markdown(
                     f"""
-                    <div style="display:flex; justify-content:space-between; align-items:center;
-                                background:#121722; border:1px solid #263044; border-radius:10px;
-                                padding:10px 12px; margin-bottom:6px;">
-                        <div>
-                            <div style="font-size:0.88rem; font-weight:700; color:#F8FAFC;">
-                                {status_icon} #{idx} {rec.card_name} <span style="font-size:0.75rem; color:#94A3B8;">({rec.optimal_window_badge})</span>
-                            </div>
-                            <div style="font-size:0.74rem; color:#94A3B8;">
-                                {rec.float_days}d libres (paga {rec.payment_due_date.strftime('%d/%b')}) ·
-                                Cashback +${rec.cashback_earned:,.2f} · Utilización {rec.utilization_after_pct:.1f}%
-                            </div>
-                        </div>
-                        <div style="text-align:right;">
-                            <div style="font-family:'JetBrains Mono', monospace; font-size:0.95rem; font-weight:700; color:#10B981;">
-                                {score_txt}
-                            </div>
-                            <div style="font-size:0.68rem; color:#64748B;">/ 100</div>
-                        </div>
-                    </div>
+<div style="display:flex; justify-content:space-between; align-items:center;
+background:#121722; border:1px solid #263044; border-radius:10px;
+padding:10px 12px; margin-bottom:6px;">
+<div>
+<div style="font-size:0.88rem; font-weight:700; color:#F8FAFC;">
+{status_icon} #{idx} {rec.card_name} <span style="font-size:0.75rem; color:#94A3B8;">({rec.optimal_window_badge})</span>
+</div>
+<div style="font-size:0.74rem; color:#94A3B8;">
+{rec.float_days}d libres (paga {rec.payment_due_date.strftime('%d/%b')}) ·
+Cashback +${rec.cashback_earned:,.2f} · Utilización {rec.utilization_after_pct:.1f}%
+</div>
+</div>
+<div style="text-align:right;">
+<div style="font-family:'JetBrains Mono', monospace; font-size:0.95rem; font-weight:700; color:#10B981;">
+{score_txt}
+</div>
+<div style="font-size:0.68rem; color:#64748B;">/ 100</div>
+</div>
+</div>
                     """,
                     unsafe_allow_html=True,
                 )
