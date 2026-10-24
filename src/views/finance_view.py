@@ -1332,18 +1332,18 @@ ${float(up.get('amount') or 0):,.2f}
         weekdays_header = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
 
         grid_html = [
-            "<div style='display:grid; grid-template-columns:repeat(7, minmax(0, 1fr)); gap:5px; margin:10px 0 14px 0;'>"
+"<div style='display:grid; grid-template-columns:repeat(7, minmax(0, 1fr)); gap:5px; margin:10px 0 14px 0;'>"
         ]
         for wd in weekdays_header:
             grid_html.append(
-                f"<div style='text-align:center; font-size:0.70rem; font-weight:700; color:#94A3B8; padding:4px 0;'>{wd}</div>"
+f"<div style='text-align:center; font-size:0.70rem; font-weight:700; color:#94A3B8; padding:4px 0;'>{wd}</div>"
             )
 
         for week in cal_matrix:
             for day_num in week:
                 if day_num == 0:
                     grid_html.append(
-                        "<div style='background:rgba(18,23,34,0.35); border:1px dashed #1E293B; border-radius:8px; min-height:66px;'></div>"
+"<div style='background:rgba(18,23,34,0.35); border:1px dashed #1E293B; border-radius:8px; min-height:66px;'></div>"
                     )
                 else:
                     is_today = (
@@ -1360,23 +1360,23 @@ ${float(up.get('amount') or 0):,.2f}
                         ev_color = ev.get("color", "#94A3B8")
                         ev_badge = ev.get("badge", "•")
                         pills_html += (
-                            f"<div style='font-size:0.58rem; background:{ev_color}22; color:{ev_color}; "
-                            f"border-left:2px solid {ev_color}; border-radius:3px; padding:1px 3px; "
-                            f"margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;'>"
-                            f"{ev_badge}</div>"
+f"<div style='font-size:0.58rem; background:{ev_color}22; color:{ev_color}; "
+f"border-left:2px solid {ev_color}; border-radius:3px; padding:1px 3px; "
+f"margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;'>"
+f"{ev_badge}</div>"
                         )
                     if len(day_evs) > 3:
                         pills_html += (
-                            f"<div style='font-size:0.58rem; color:#94A3B8; margin-top:1px;'>+{len(day_evs) - 3} más</div>"
+f"<div style='font-size:0.58rem; color:#94A3B8; margin-top:1px;'>+{len(day_evs) - 3} más</div>"
                         )
 
                     grid_html.append(
-                        f"<div style='background:{bg_col}; border:1px solid {border_col}; border-radius:8px; "
-                        f"padding:4px 5px; min-height:66px; display:flex; flex-direction:column; justify-content:space-between;'>"
-                        f"<div style='font-family:JetBrains Mono, monospace; font-size:0.72rem; font-weight:700; "
-                        f"color:{'#60A5FA' if is_today else '#F8FAFC'};'>{day_num}</div>"
-                        f"<div>{pills_html}</div>"
-                        f"</div>"
+f"<div style='background:{bg_col}; border:1px solid {border_col}; border-radius:8px; "
+f"padding:4px 5px; min-height:66px; display:flex; flex-direction:column; justify-content:space-between;'>"
+f"<div style='font-family:JetBrains Mono, monospace; font-size:0.72rem; font-weight:700; "
+f"color:{'#60A5FA' if is_today else '#F8FAFC'};'>{day_num}</div>"
+f"<div>{pills_html}</div>"
+f"</div>"
                     )
         grid_html.append("</div>")
         st.markdown("".join(grid_html), unsafe_allow_html=True)
