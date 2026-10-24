@@ -598,56 +598,56 @@ def _render_card_advisor_simulator_fragment(
     st.markdown(
         f"""
         <div style="background:linear-gradient(145deg, #121722 0%, #192234 100%);
-                    border:2px solid {win_border}; border-radius:14px; padding:16px; margin:8px 0 12px 0;
-                    box-shadow:0 10px 26px rgba(0,0,0,0.45);">
-            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
-                <span style="font-size:0.73rem; font-weight:700; padding:4px 10px; border-radius:999px;
-                             background:{win_badge_bg}; color:{win_border}; border:1px solid {win_border}66;">
-                    {win_badge_txt}
-                </span>
-                <span style="font-size:0.78rem; color:#94A3B8; font-family:'JetBrains Mono', monospace;">
-                    Liquidar el: <b style="color:#F8FAFC;">{winner.payment_due_date.strftime('%d/%b/%Y')}</b>
-                </span>
-            </div>
-            <div style="font-size:1.25rem; font-weight:800; color:#F8FAFC; margin:10px 0 4px 0;">
-                💳 {winner.card_name} <span style="font-size:0.82rem; color:#94A3B8; font-weight:500;">({winner.institution_name} •••• {winner.last_four_digits})</span>
-            </div>
-            <div style="font-size:0.84rem; color:#CBD5E1; margin-bottom:12px;">
-                {summary_txt}
-            </div>
-            <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px;">
-                <div style="background:rgba(10,13,20,0.65); border:1px solid #263044; border-radius:10px; padding:8px 10px;">
-                    <div style="font-size:0.68rem; color:#94A3B8; text-transform:uppercase;">Plazo sin intereses (45%)</div>
-                    <div style="font-family:'JetBrains Mono', monospace; font-size:1.05rem; font-weight:700; color:#10B981;">
-                        {winner.float_days} días libres
-                    </div>
-                    <div style="font-size:0.70rem; color:#64748B;">Score Float: {winner.score_float:.1f}/45 pts</div>
-                </div>
-                <div style="background:rgba(10,13,20,0.65); border:1px solid #263044; border-radius:10px; padding:8px 10px;">
-                    <div style="font-size:0.68rem; color:#94A3B8; text-transform:uppercase;">Recompensa Cashback (25%)</div>
-                    <div style="font-family:'JetBrains Mono', monospace; font-size:1.05rem; font-weight:700; color:#38BDF8;">
-                        +${winner.cashback_earned:,.2f} {currency}
-                    </div>
-                    <div style="font-size:0.70rem; color:#64748B;">Tasa {winner.cashback_pct:.2f}% · {winner.score_cashback:.1f}/25 pts</div>
-                </div>
-                <div style="background:rgba(10,13,20,0.65); border:1px solid #263044; border-radius:10px; padding:8px 10px;">
-                    <div style="font-size:0.68rem; color:#94A3B8; text-transform:uppercase;">Salud Utilización (20%)</div>
-                    <div style="font-family:'JetBrains Mono', monospace; font-size:0.95rem; font-weight:700; color:#F8FAFC;">
-                        {winner.utilization_before_pct:.1f}% → {winner.utilization_after_pct:.1f}%
-                    </div>
-                    <div style="font-size:0.70rem; color:#64748B;">Disp. post-compra: ${winner.available_credit_after:,.0f}</div>
-                </div>
-                <div style="background:rgba(10,13,20,0.65); border:1px solid #263044; border-radius:10px; padding:8px 10px;">
-                    <div style="font-size:0.68rem; color:#94A3B8; text-transform:uppercase;">Ajuste Presupuesto (10%)</div>
-                    <div style="font-family:'JetBrains Mono', monospace; font-size:0.95rem; font-weight:700; color:#F8FAFC;">
-                        {winner.score_budget:.1f} / 10 pts
-                    </div>
-                    <div style="font-size:0.70rem; color:#64748B;">Remanente cat.: ${winner.budget_remaining_after:,.0f}</div>
-                </div>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
+border:2px solid {win_border}; border-radius:14px; padding:16px; margin:8px 0 12px 0;
+box-shadow:0 10px 26px rgba(0,0,0,0.45);">
+<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+<span style="font-size:0.73rem; font-weight:700; padding:4px 10px; border-radius:999px;
+background:{win_badge_bg}; color:{win_border}; border:1px solid {win_border}66;">
+{win_badge_txt}
+</span>
+<span style="font-size:0.78rem; color:#94A3B8; font-family:'JetBrains Mono', monospace;">
+Liquidar el: <b style="color:#F8FAFC;">{winner.payment_due_date.strftime('%d/%b/%Y')}</b>
+</span>
+</div>
+<div style="font-size:1.25rem; font-weight:800; color:#F8FAFC; margin:10px 0 4px 0;">
+💳 {winner.card_name} <span style="font-size:0.82rem; color:#94A3B8; font-weight:500;">({winner.institution_name} •••• {winner.last_four_digits})</span>
+</div>
+<div style="font-size:0.84rem; color:#CBD5E1; margin-bottom:12px;">
+{summary_txt}
+</div>
+<div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px;">
+<div style="background:rgba(10,13,20,0.65); border:1px solid #263044; border-radius:10px; padding:8px 10px;">
+<div style="font-size:0.68rem; color:#94A3B8; text-transform:uppercase;">Plazo sin intereses (45%)</div>
+<div style="font-family:'JetBrains Mono', monospace; font-size:1.05rem; font-weight:700; color:#10B981;">
+{winner.float_days} días libres
+</div>
+<div style="font-size:0.70rem; color:#64748B;">Score Float: {winner.score_float:.1f}/45 pts</div>
+</div>
+<div style="background:rgba(10,13,20,0.65); border:1px solid #263044; border-radius:10px; padding:8px 10px;">
+<div style="font-size:0.68rem; color:#94A3B8; text-transform:uppercase;">Recompensa Cashback (25%)</div>
+<div style="font-family:'JetBrains Mono', monospace; font-size:1.05rem; font-weight:700; color:#38BDF8;">
++${winner.cashback_earned:,.2f} {currency}
+</div>
+<div style="font-size:0.70rem; color:#64748B;">Tasa {winner.cashback_pct:.2f}% · {winner.score_cashback:.1f}/25 pts</div>
+</div>
+<div style="background:rgba(10,13,20,0.65); border:1px solid #263044; border-radius:10px; padding:8px 10px;">
+<div style="font-size:0.68rem; color:#94A3B8; text-transform:uppercase;">Salud Utilización (20%)</div>
+<div style="font-family:'JetBrains Mono', monospace; font-size:0.95rem; font-weight:700; color:#F8FAFC;">
+{winner.utilization_before_pct:.1f}% → {winner.utilization_after_pct:.1f}%
+</div>
+<div style="font-size:0.70rem; color:#64748B;">Disp. post-compra: ${winner.available_credit_after:,.0f}</div>
+</div>
+<div style="background:rgba(10,13,20,0.65); border:1px solid #263044; border-radius:10px; padding:8px 10px;">
+<div style="font-size:0.68rem; color:#94A3B8; text-transform:uppercase;">Ajuste Presupuesto (10%)</div>
+<div style="font-family:'JetBrains Mono', monospace; font-size:0.95rem; font-weight:700; color:#F8FAFC;">
+{winner.score_budget:.1f} / 10 pts
+</div>
+<div style="font-size:0.70rem; color:#64748B;">Remanente cat.: ${winner.budget_remaining_after:,.0f}</div>
+</div>
+</div>
+</div>
+""",
+unsafe_allow_html=True,
     )
 
     # Mostrar alertas sobre días óptimos de compra (esperar al día después de la fecha de corte)
