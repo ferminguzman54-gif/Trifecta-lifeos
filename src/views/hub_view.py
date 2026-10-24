@@ -19,7 +19,6 @@ import streamlit as st
 
 from src.auth.session_manager import get_current_user_id
 from src.components.chart_builders import apply_mobile_dark_layout, render_mobile_plotly
-from src.components.kpi_cards import render_kpi_card
 from src.config.theme import PALETTE
 from src.models.hub_models import DailyLifeSnapshotModel, TrifectaWeights
 from src.services.card_advisor_engine import (
@@ -46,6 +45,52 @@ from src.services.trifecta_score_engine import (
     fetch_daily_snapshots,
     upsert_daily_snapshot,
 )
+
+
+# =====================================================================
+# HELPERS HTML (evitan que Markdown interprete el HTML como bloque de código)
+# =====================================================================
+
+
+def _flat(html: str) -> str:
+    """Colapsa HTML multilínea a una sola línea sin indentación.
+
+    Markdown trata líneas con 4+ espacios de sangría como bloque de código, lo que
+    mostraba etiquetas </div> / <div ...> como texto crudo en pantalla.
+    """
+    return " ".join(line.strip() for line in str(html).splitlines() if line.strip())
+
+
+def render_kpi_card(
+    label: str,
+    value: str,
+    delta_text: str = "",
+    delta_positive: bool = True,
+    accent_color: str = "#3B82F6",
+) -> None:
+    """Tarjeta KPI compacta renderizada en una sola línea de HTML."""
+    d_col = "#10B981" if delta_positive else "#EF4444"
+    delta_html = (
+        f'<div style="display:inline-block; margin-top:6px; padding:2px 8px; border-radius:999px; '
+        f'font-size:0.70rem; font-weight:700; white-space:nowrap; color:{d_col}; '
+        f'background:{d_col}1F; border:1px solid {d_col}55;">{delta_text}</div>'
+        if delta_text
+        else ""
+    )
+    st.markdown(
+        _flat(
+            f"""
+            <div style="background:#121722; border:1px solid #263044; border-left:4px solid {accent_color};
+                        border-radius:12px; padding:10px 12px; margin-bottom:6px;">
+                <div style="font-size:0.68rem; color:#94A3B8; text-transform:uppercase; letter-spacing:0.05em;">{label}</div>
+                <div class="trifecta-kpi-value" style="font-size:1.35rem; font-weight:800; color:#F8FAFC; margin-top:4px;">{value}</div>
+                {delta_html}
+            </div>
+            """
+        ),
+        unsafe_allow_html=True,
+    )
+
 
 
 # =====================================================================
@@ -289,7 +334,7 @@ def render_hub_view() -> None:
     dash_offset = dash_array * (1.0 - min(100.0, max(0.0, score_val)) / 100.0)
 
     st.markdown(
-        f"""
+        _flat(f"""
         <div class="trifecta-hero-card">
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
                 <div>
@@ -361,8 +406,8 @@ def render_hub_view() -> None:
                 </div>
             </div>
         </div>
-        """,
-        unsafe_allow_html=True,
+        """),
+            unsafe_allow_html=True,
     )
 
     # ── 2. WIDGET DE ACCIÓN RÁPIDA EN 1 TOQUE (QUICK ACTION DOCK) ──
@@ -430,7 +475,7 @@ def render_hub_view() -> None:
     with st.container(border=True):
         analytics_map = {str(h["id"]): calculate_habit_analytics(h, habit_logs) for h in habits}
         st.markdown(
-            f"""
+            _flat(f"""
 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
 <span class="trifecta-pillar-pill" style="background:#8B5CF626; color:#A78BFA; border:1px solid #8B5CF655;">
 🎯 Hábitos de la Jornada
@@ -442,7 +487,7 @@ def render_hub_view() -> None:
 <div style="width:100%; height:8px; background:rgba(255,255,255,0.08); border-radius:999px; margin-bottom:10px; overflow:hidden;">
 <div style="width:{min(100.0, pulse.habit_score):.1f}%; height:100%; background:linear-gradient(90deg, #8B5CF6, #10B981); border-radius:999px;"></div>
 </div>
-""",
+"""),
             unsafe_allow_html=True,
         )
 
@@ -499,7 +544,7 @@ def render_hub_view() -> None:
         )
 
         st.markdown(
-            f"""
+            _flat(f"""
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:4px;">
                 <span class="trifecta-pillar-pill" style="background:#FF550026; color:#FF5500; border:1px solid #FF550055;">
                     🏋️ Secuencia Push / Pull / Legs
@@ -511,7 +556,7 @@ def render_hub_view() -> None:
                 <div style="font-size:0.78rem; color:#CBD5E1; margin-top:2px;">{routine_subtitle}</div>
                 <div style="font-size:0.72rem; color:#94A3B8; margin-top:4px;">⏱️ {last_info}</div>
             </div>
-            """,
+            """),
             unsafe_allow_html=True,
         )
 
@@ -520,7 +565,7 @@ def render_hub_view() -> None:
             for target in w_sugg.overload_targets:
                 b_col = str(target.get("badge_color") or "#10B981")
                 st.markdown(
-                    f"""
+                    _flat(f"""
                     <div style="display:flex; justify-content:space-between; align-items:center;
                                 background:#121722; border:1px solid #263044; border-radius:10px;
                                 padding:8px 11px; margin-bottom:6px;">
@@ -539,8 +584,8 @@ def render_hub_view() -> None:
                             <div style="font-size:0.68rem; color:#64748B;">1RM est: {float(target['estimated_1rm_kg']):.1f} {weight_unit}</div>
                         </div>
                     </div>
-                    """,
-                    unsafe_allow_html=True,
+                    """),
+            unsafe_allow_html=True,
                 )
 
         if st.button("⚡ Ir a Registro en Vivo de Entrenamiento", use_container_width=True, key="hub_go_workout"):
@@ -559,52 +604,52 @@ def render_hub_view() -> None:
         b_badge_txt, b_badge_col = b_status_map.get(pulse.budget_status, ("✅ Saludable", "#10B981"))
 
         st.markdown(
-            f"""
+            _flat(f"""
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:4px;">
                 <span class="trifecta-pillar-pill" style="background:#10B98126; color:#10B981; border:1px solid #10B98155;">
                     💳 Pulso Financiero Inmediato
                 </span>
                 <span style="font-size:0.74rem; color:{b_badge_col}; font-weight:700;">{b_badge_txt}</span>
             </div>
-            """,
+            """),
             unsafe_allow_html=True,
         )
 
         col_f1, col_f2, col_f3 = st.columns(3)
         with col_f1:
-render_kpi_card(
-label="Saldo Consolidado",
-value=f"${pulse.liquid_balance:,.0f}",
-delta_text=f"Deuda TDC: ${pulse.cc_debt:,.0f}",
-delta_positive=(pulse.liquid_balance >= pulse.cc_debt),
-accent_color=PALETTE["accent_finance"],
+            render_kpi_card(
+                label="Saldo Consolidado",
+                value=f"${pulse.liquid_balance:,.0f}",
+                delta_text=f"Deuda TDC: ${pulse.cc_debt:,.0f}",
+                delta_positive=(pulse.liquid_balance >= pulse.cc_debt),
+                accent_color=PALETTE["accent_finance"],
             )
         with col_f2:
-render_kpi_card(
-label="Gasto de Hoy",
-value=f"${pulse.today_expenses_amount:,.0f}",
-delta_text=f"Moneda: {currency}",
-delta_positive=(pulse.today_expenses_amount == 0),
-accent_color="#38BDF8" if pulse.today_expenses_amount == 0 else "#F59E0B",
+            render_kpi_card(
+                label="Gasto de Hoy",
+                value=f"${pulse.today_expenses_amount:,.0f}",
+                delta_text=f"Moneda: {currency}",
+                delta_positive=(pulse.today_expenses_amount == 0),
+                accent_color="#38BDF8" if pulse.today_expenses_amount == 0 else "#F59E0B",
             )
         with col_f3:
-render_kpi_card(
-label="Presupuesto Libre",
-value=f"${pulse.budget_remaining_total:,.0f}",
-delta_text=f"{pulse.budget_used_pct:.1f}% usado este mes",
-delta_positive=(pulse.budget_used_pct <= 85.0),
-accent_color=b_badge_col,
+            render_kpi_card(
+                label="Presupuesto Libre",
+                value=f"${pulse.budget_remaining_total:,.0f}",
+                delta_text=f"{pulse.budget_used_pct:.1f}% usado este mes",
+                delta_positive=(pulse.budget_used_pct <= 85.0),
+                accent_color=b_badge_col,
             )
 
         st.markdown(
-            f"""
+            _flat(f"""
             <div style="background:#121722; border-left:4px solid {pulse.next_card_alert_color};
                         border-top:1px solid #263044; border-right:1px solid #263044; border-bottom:1px solid #263044;
                         border-radius:10px; padding:8px 12px; margin:6px 0 10px 0;
                         display:flex; justify-content:space-between; align-items:center;">
                 <span style="font-size:0.78rem; color:#CBD5E1;">🗓️ <b>Próximo evento TDC:</b> {pulse.next_card_alert_text}</span>
             </div>
-            """,
+            """),
             unsafe_allow_html=True,
         )
 
@@ -622,7 +667,7 @@ accent_color=b_badge_col,
                     "Horizonte",
                     options=[7, 14, 30],
                     default=14,
-                    format_func=lambda d: f"{d}D ({'Semanal' if d == 7 else ('Quincenal' if d == 14 else 'Mensual')})",
+                    format_func=lambda d: f"{d}D",
                     key="hub_consistency_tf",
                 )
                 or 14
@@ -644,20 +689,20 @@ accent_color=b_badge_col,
 
         c_k1, c_k2 = st.columns(2)
         with c_k1:
-render_kpi_card(
-label="Promedio Semanal (7D)",
-value=f"{consistency_data['avg_trifecta_7d']:.1f} pts",
-delta_text=f"{consistency_data['avg_trifecta_7d'] - consistency_data['avg_trifecta_30d']:+.1f} vs 30D",
-delta_positive=(consistency_data["avg_trifecta_7d"] >= consistency_data["avg_trifecta_30d"]),
-accent_color="#3B82F6",
+            render_kpi_card(
+                label="Promedio Semanal (7D)",
+                value=f"{consistency_data['avg_trifecta_7d']:.1f} pts",
+                delta_text=f"{consistency_data['avg_trifecta_7d'] - consistency_data['avg_trifecta_30d']:+.1f} vs 30D",
+                delta_positive=(consistency_data["avg_trifecta_7d"] >= consistency_data["avg_trifecta_30d"]),
+                accent_color="#3B82F6",
             )
         with c_k2:
-render_kpi_card(
-label="Promedio Mensual (30D)",
-value=f"{consistency_data['avg_trifecta_30d']:.1f} pts",
-delta_text=f"Racha activa: {pulse.consistency_streak_days}d",
-delta_positive=(consistency_data["avg_trifecta_30d"] >= 70.0),
-accent_color="#10B981",
+            render_kpi_card(
+                label="Promedio Mensual (30D)",
+                value=f"{consistency_data['avg_trifecta_30d']:.1f} pts",
+                delta_text=f"Racha activa: {pulse.consistency_streak_days}d",
+                delta_positive=(consistency_data["avg_trifecta_30d"] >= 70.0),
+                accent_color="#10B981",
             )
 
         if sliced_series:
@@ -691,6 +736,7 @@ accent_color="#10B981",
                     )
                 )
                 fig_trend.update_layout(barmode="group")
+                fig_trend.update_yaxes(range=[0, 105])
                 apply_mobile_dark_layout(fig_trend, height=250)
                 render_mobile_plotly(fig_trend, key="hub_plotly_trend")
             else:
