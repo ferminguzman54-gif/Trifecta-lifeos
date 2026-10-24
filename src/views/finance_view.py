@@ -6,6 +6,7 @@ Sigue estrictamente 01_PRD (§3), 02_TRD (§5.2), 03_Appflow (§5) y 04_UI_UX_De
 from __future__ import annotations
 
 import calendar
+import threading
 from datetime import date
 from typing import Any, Dict, List
 
@@ -14,7 +15,7 @@ import streamlit as st
 
 from src.auth.session_manager import get_current_user_id
 from src.components.chart_builders import apply_mobile_dark_layout, render_mobile_plotly
-from src.components.credit_card_widget import render_credit_card_widget
+from src.components.credit_card_widget import render_credit_card_widget as _render_credit_card_widget_raw
 from src.components.kpi_cards import render_kpi_card
 from src.config.theme import CARD_GRADIENTS, PALETTE, render_pillar_header
 from src.models.finance_models import (
@@ -58,6 +59,45 @@ SPANISH_MONTHS: List[str] = [
     "Noviembre",
     "Diciembre",
 ]
+
+
+# =====================================================================
+# PARCHE: HTML de las tarjetas (render_credit_card_widget) mostrado como código
+# =====================================================================
+# El widget arma su HTML con líneas sangradas (4+ espacios) y Markdown lo interpreta
+# como bloque de código (se ve «<div style=...» en pantalla). Mientras se dibuja la
+# tarjeta, st.markdown(..., unsafe_allow_html=True) aplana el HTML a una sola línea.
+# Solución definitiva: aplicar el mismo aplanado dentro de credit_card_widget.py.
+
+_HTML_FLAT_STATE = threading.local()
+
+
+def _flatten_html(body: str) -> str:
+    return " ".join(line.strip() for line in body.splitlines() if line.strip())
+
+
+def _install_markdown_flatten_patch() -> None:
+    if getattr(st.markdown, "_trifecta_flatten_patch", False):
+        return
+    _original_markdown = st.markdown
+
+    def _patched_markdown(body, *args, **kwargs):
+        if getattr(_HTML_FLAT_STATE, "active", False) and kwargs.get("unsafe_allow_html") and isinstance(body, str):
+            body = _flatten_html(body)
+        return _original_markdown(body, *args, **kwargs)
+
+    _patched_markdown._trifecta_flatten_patch = True  # type: ignore[attr-defined]
+    st.markdown = _patched_markdown  # type: ignore[assignment]
+
+
+def render_credit_card_widget(**kwargs: Any) -> None:
+    """Envuelve el widget de tarjeta aplanando su HTML para que no se muestre como código."""
+    _install_markdown_flatten_patch()
+    _HTML_FLAT_STATE.active = True
+    try:
+        _render_credit_card_widget_raw(**kwargs)
+    finally:
+        _HTML_FLAT_STATE.active = False
 
 
 # =====================================================================

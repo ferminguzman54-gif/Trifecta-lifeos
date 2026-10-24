@@ -11,6 +11,15 @@ import streamlit as st
 from src.config.theme import CARD_GRADIENTS
 
 
+def _flat(html: str) -> str:
+    """Colapsa HTML multilínea a una sola línea sin sangría.
+
+    Markdown trata líneas con 4+ espacios al inicio como bloque de código, lo que
+    mostraba etiquetas <div style=...> como texto crudo dentro de la tarjeta.
+    """
+    return " ".join(line.strip() for line in str(html).splitlines() if line.strip())
+
+
 def render_credit_card_widget(
     institution_name: str,
     alias: str,
@@ -78,17 +87,17 @@ def render_credit_card_widget(
             else:
                 f_color = "#F59E0B"
                 f_icon = "⏳ Próxima a cortar"
-            float_banner_html = f"""
-            <div style="
-                display:flex; justify-content:space-between; align-items:center;
-                font-size:0.73rem; background:rgba(10,13,20,0.45);
-                padding:5px 10px; border-radius:9px; margin-bottom:8px;
-                border:1px solid rgba(255,255,255,0.10);
-            ">
-                <span style="color:{f_color}; font-weight:700;">{f_icon}</span>
-                <span>Comprando hoy: <b>{float_days_today} días sin intereses</b></span>
-            </div>
-            """
+            float_banner_html = _flat(
+                f"""
+<div style="display:flex; justify-content:space-between; align-items:center;
+font-size:0.73rem; background:rgba(10,13,20,0.45);
+padding:5px 10px; border-radius:9px; margin-bottom:8px;
+border:1px solid rgba(255,255,255,0.10);">
+<span style="color:{f_color}; font-weight:700;">{f_icon}</span>
+<span>Comprando hoy: <b>{float_days_today} días sin intereses</b></span>
+</div>
+"""
+            )
     else:
         utilization_pct = 100.0
         bar_color = "#10B981"
@@ -105,29 +114,31 @@ def render_credit_card_widget(
         float_banner_html = ""
 
     st.markdown(
-        f"""
-        <div class="trifecta-cc-card" style="background: {theme['css']}; border-color: {theme['border']};">
-          <div class="cc-header">
-            <div>
-              <span class="cc-bank">{institution_name} · {network_label}</span>
-              <h4 class="cc-alias">{alias}</h4>
-            </div>
-            <span class="cc-badge">{badge_text}</span>
-          </div>
-          <div class="cc-balance-block">
-            <span class="cc-label">{balance_label}</span>
-            <div class="cc-amount">{amount_html}</div>
-            <div class="cc-progress-bg">
-              <div class="cc-progress-fill" style="width: {utilization_pct:.1f}%; background: {bar_color};"></div>
-            </div>
-          </div>
-          {float_banner_html}
-          <div class="cc-footer">
-            <span>•••• {clean_last4}</span>
-            <span>{footer_mid}</span>
-            <span>{footer_right}</span>
-          </div>
-        </div>
-        """,
+        _flat(
+            f"""
+<div class="trifecta-cc-card" style="background: {theme['css']}; border-color: {theme['border']};">
+<div class="cc-header">
+<div>
+<span class="cc-bank">{institution_name} · {network_label}</span>
+<h4 class="cc-alias">{alias}</h4>
+</div>
+<span class="cc-badge">{badge_text}</span>
+</div>
+<div class="cc-balance-block">
+<span class="cc-label">{balance_label}</span>
+<div class="cc-amount">{amount_html}</div>
+<div class="cc-progress-bg">
+<div class="cc-progress-fill" style="width: {utilization_pct:.1f}%; background: {bar_color};"></div>
+</div>
+</div>
+{float_banner_html}
+<div class="cc-footer">
+<span>•••• {clean_last4}</span>
+<span>{footer_mid}</span>
+<span>{footer_right}</span>
+</div>
+</div>
+"""
+        ),
         unsafe_allow_html=True,
     )
