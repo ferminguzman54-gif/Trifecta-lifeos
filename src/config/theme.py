@@ -28,37 +28,127 @@ PALETTE: Dict[str, str] = {
     "status_danger": "#EF4444",
 }
 
-# Degradados de tarjetas bancarias modernas (04_UI_UX_Design_Brief.md §3.1)
+# Degradados de tarjetas bancarias modernas (04_UI_UX_Design_Brief.md §3.1 + 6 Nuevas Carátulas)
 CARD_GRADIENTS: Dict[str, Dict[str, str]] = {
     "indigo_neon": {
         "label": "Índigo / Fintech",
         "css": "linear-gradient(135deg, #1E1B4B 0%, #4338CA 100%)",
-        "border": "rgba(255, 255, 255, 0.16)",
+        "border": "rgba(255, 255, 255, 0.20)",
+        "text_color": "#F8FAFC",
+        "muted_color": "#E2E8F0",
+        "badge_bg": "rgba(10, 13, 20, 0.55)",
+        "badge_border": "rgba(255, 255, 255, 0.28)",
+        "badge_text_color": "#F8FAFC",
     },
     "violet_nu": {
         "label": "Violeta Neón (Nu / Fintech)",
-        "css": "linear-gradient(135deg, #4A00E0 0%, #8E2DE2 100%)",
-        "border": "rgba(255, 255, 255, 0.18)",
+        "css": "linear-gradient(135deg, #3B0764 0%, #6D28D9 55%, #7E22CE 100%)",
+        "border": "rgba(216, 180, 254, 0.30)",
+        "text_color": "#F8FAFC",
+        "muted_color": "#F1F5F9",
+        "badge_bg": "rgba(10, 13, 20, 0.58)",
+        "badge_border": "rgba(255, 255, 255, 0.32)",
+        "badge_text_color": "#F8FAFC",
     },
     "deep_blue": {
         "label": "Azul Profundo (BBVA / Citibanamex)",
         "css": "linear-gradient(135deg, #0F2027 0%, #203A43 50%, #2C5364 100%)",
-        "border": "rgba(255, 255, 255, 0.16)",
+        "border": "rgba(255, 255, 255, 0.20)",
+        "text_color": "#F8FAFC",
+        "muted_color": "#E2E8F0",
+        "badge_bg": "rgba(10, 13, 20, 0.55)",
+        "badge_border": "rgba(255, 255, 255, 0.28)",
+        "badge_text_color": "#F8FAFC",
     },
     "crimson_red": {
         "label": "Rojo Intenso (Santander / HSBC)",
-        "css": "linear-gradient(135deg, #870000 0%, #190A05 100%)",
-        "border": "rgba(255, 255, 255, 0.16)",
+        "css": "linear-gradient(135deg, #7F1D1D 0%, #450A0A 60%, #190A05 100%)",
+        "border": "rgba(252, 165, 165, 0.28)",
+        "text_color": "#F8FAFC",
+        "muted_color": "#E2E8F0",
+        "badge_bg": "rgba(10, 13, 20, 0.58)",
+        "badge_border": "rgba(255, 255, 255, 0.28)",
+        "badge_text_color": "#F8FAFC",
     },
     "metallic_gold": {
         "label": "Metalizado / Platino-Oro (Amex / Invex)",
         "css": "linear-gradient(135deg, #232526 0%, #414345 100%)",
         "border": "#D4AF37",
+        "text_color": "#F8FAFC",
+        "muted_color": "#E2E8F0",
+        "badge_bg": "rgba(10, 13, 20, 0.65)",
+        "badge_border": "rgba(212, 175, 55, 0.65)",
+        "badge_text_color": "#FEF08A",
     },
     "emerald_wealth": {
         "label": "Esmeralda Patrimonial (Ahorro / Inversión)",
         "css": "linear-gradient(135deg, #064E3B 0%, #047857 100%)",
-        "border": "rgba(16, 185, 129, 0.35)",
+        "border": "rgba(52, 211, 153, 0.40)",
+        "text_color": "#F8FAFC",
+        "muted_color": "#E2E8F0",
+        "badge_bg": "rgba(10, 13, 20, 0.55)",
+        "badge_border": "rgba(52, 211, 153, 0.45)",
+        "badge_text_color": "#ECFDF5",
+    },
+    "obsidian_gold": {
+        "label": "Obsidian Gold (Black / Oro Imperial)",
+        "css": "linear-gradient(135deg, #090A0F 0%, #1C1917 55%, #785A28 100%)",
+        "border": "#EAB308",
+        "text_color": "#F8FAFC",
+        "muted_color": "#E2E8F0",
+        "badge_bg": "rgba(9, 10, 15, 0.72)",
+        "badge_border": "rgba(234, 179, 8, 0.65)",
+        "badge_text_color": "#FEF08A",
+    },
+    "emerald_minimal": {
+        "label": "Emerald Minimal (Verde Jade Oscuro)",
+        "css": "linear-gradient(135deg, #022C22 0%, #065F46 52%, #115E59 100%)",
+        "border": "rgba(110, 231, 183, 0.40)",
+        "text_color": "#F8FAFC",
+        "muted_color": "#E2E8F0",
+        "badge_bg": "rgba(2, 44, 34, 0.70)",
+        "badge_border": "rgba(110, 231, 183, 0.50)",
+        "badge_text_color": "#D1FAE5",
+    },
+    "cyberpunk_cyan": {
+        "label": "Cyberpunk Cyan (Neón Cian / Tech)",
+        "css": "linear-gradient(135deg, #090D16 0%, #164E63 52%, #0891B2 100%)",
+        "border": "rgba(34, 211, 238, 0.50)",
+        "text_color": "#F8FAFC",
+        "muted_color": "#E2E8F0",
+        "badge_bg": "rgba(9, 13, 22, 0.70)",
+        "badge_border": "rgba(34, 211, 238, 0.55)",
+        "badge_text_color": "#CFFAFE",
+    },
+    "sunset_orange": {
+        "label": "Sunset Orange (Ámbar / Coral Intenso)",
+        "css": "linear-gradient(135deg, #431407 0%, #9A3412 52%, #C2410C 100%)",
+        "border": "rgba(251, 146, 60, 0.45)",
+        "text_color": "#F8FAFC",
+        "muted_color": "#F1F5F9",
+        "badge_bg": "rgba(24, 10, 5, 0.68)",
+        "badge_border": "rgba(253, 186, 116, 0.50)",
+        "badge_text_color": "#FFEDD5",
+    },
+    "titanium_silver": {
+        "label": "Titanium Silver (Acero / Apple Card Dark)",
+        "css": "linear-gradient(135deg, #1E293B 0%, #334155 52%, #475569 100%)",
+        "border": "rgba(226, 232, 240, 0.42)",
+        "text_color": "#F8FAFC",
+        "muted_color": "#E2E8F0",
+        "badge_bg": "rgba(15, 23, 42, 0.68)",
+        "badge_border": "rgba(226, 232, 240, 0.45)",
+        "badge_text_color": "#F8FAFC",
+    },
+    "rose_velvet": {
+        "label": "Rose Velvet (Terciopelo Rubí / Magenta)",
+        "css": "linear-gradient(135deg, #3B0764 0%, #831843 52%, #9D174D 100%)",
+        "border": "rgba(244, 114, 182, 0.45)",
+        "text_color": "#F8FAFC",
+        "muted_color": "#F1F5F9",
+        "badge_bg": "rgba(28, 6, 38, 0.68)",
+        "badge_border": "rgba(244, 114, 182, 0.50)",
+        "badge_text_color": "#FCE7F3",
     },
 }
 
@@ -322,22 +412,13 @@ def render_pillar_header(title: str, subtitle: str, accent_hex: str, badge_text:
     """Renderiza el encabezado semántico de cada módulo con su color de acento correspondiente."""
     st.markdown(
         f"""
-        <div style="
-            background: linear-gradient(135deg, {accent_hex}1F 0%, rgba(18, 23, 34, 0.95) 100%);
-            border: 1px solid {accent_hex}4D;
-            border-left: 4px solid {accent_hex};
-            border-radius: 16px;
-            padding: 14px 16px;
-            margin-bottom: 14px;
-        ">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                <span class="trifecta-pillar-pill" style="background:{accent_hex}2E; color:{accent_hex}; border:1px solid {accent_hex}55;">
-                    {badge_text}
-                </span>
-            </div>
-            <div style="font-size:1.30rem; font-weight:800; color:#F8FAFC; line-height:1.2;">{title}</div>
-            <div style="font-size:0.84rem; color:#94A3B8; margin-top:3px;">{subtitle}</div>
-        </div>
-        """,
+<div style="background: linear-gradient(135deg, {accent_hex}1F 0%, rgba(18, 23, 34, 0.95) 100%); border: 1px solid {accent_hex}4D; border-left: 4px solid {accent_hex}; border-radius: 16px; padding: 14px 16px; margin-bottom: 14px;">
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+<span class="trifecta-pillar-pill" style="background:{accent_hex}2E; color:{accent_hex}; border:1px solid {accent_hex}55;">{badge_text}</span>
+</div>
+<div style="font-size:1.30rem; font-weight:800; color:#F8FAFC; line-height:1.2;">{title}</div>
+<div style="font-size:0.84rem; color:#94A3B8; margin-top:3px;">{subtitle}</div>
+</div>
+""",
         unsafe_allow_html=True,
     )

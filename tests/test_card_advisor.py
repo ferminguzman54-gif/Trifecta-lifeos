@@ -6,11 +6,14 @@ from __future__ import annotations
 
 from datetime import date
 
+from src.config.theme import CARD_GRADIENTS
 from src.services.card_advisor_engine import (
     build_financial_calendar_events,
     calculate_card_cycle_dates,
     calculate_float_days,
     evaluate_best_payment_cards,
+    filter_financial_calendar_events,
+    is_home_service_item,
     simulate_credit_card_amortization,
 )
 
@@ -171,3 +174,72 @@ def test_build_financial_calendar_events_maps_cutoffs_and_due_dates() -> None:
     assert any(e["kind"] == "cutoff" for e in events_by_day[12])
     assert any(e["kind"] == "payment_due" for e in events_by_day[2])
     assert any(e["kind"] == "subscription" for e in events_by_day[15])
+
+
+def test_smart_financial_calendar_filters_and_card_gradients() -> None:
+    """Verifica los 5 filtros inteligentes del calendario y las nuevas carátulas de tarjetas."""
+    for expected_theme in (
+        "obsidian_gold",
+        "emerald_minimal",
+        "cyberpunk_cyan",
+        "sunset_orange",
+        "titanium_silver",
+        "rose_velvet",
+    ):
+        assert expected_theme in CARD_GRADIENTS
+
+    assert is_home_service_item("Internet Fibra Telmex", "Vivienda y Servicios") is True
+    assert is_home_service_item("Spotify Premium", "Suscripciones y Digital") is False
+
+    accounts = [
+        {
+            "id": "cc-1",
+            "name": "BBVA Azul",
+            "account_type": "credit_card",
+            "current_balance": 8500.0,
+            "credit_limit": 50000.0,
+            "cutoff_day": 12,
+            "payment_due_day": 2,
+            "is_active": True,
+        }
+    ]
+    subs = [
+        {
+            "id": "sub-1",
+            "service_name": "Spotify Duo",
+            "amount": 199.0,
+            "billing_cycle": "monthly",
+            "billing_day_of_month": 15,
+            "is_active": True,
+        },
+        {
+            "id": "sub-2",
+            "service_name": "Internet Fibra Óptica",
+            "amount": 699.0,
+            "billing_cycle": "monthly",
+            "billing_day_of_month": 18,
+            "is_active": True,
+        },
+    ]
+    cal = build_financial_calendar_events(
+        accounts=accounts,
+        subscriptions=subs,
+        transactions=[],
+        year=2026,
+        month=4,
+    )
+    only_cutoffs = filter_financial_calendar_events(cal, "Solo Cortes TDC")
+    assert len(only_cutoffs["events_by_day"][12]) == 1
+    assert len(only_cutoffs["events_by_day"][2]) == 0
+
+    only_due = filter_financial_calendar_events(cal, "Solo Fechas de Pago")
+    assert len(only_due["events_by_day"][2]) == 1
+    assert len(only_due["events_by_day"][12]) == 0
+
+    only_subs = filter_financial_calendar_events(cal, "Solo Suscripciones")
+    assert len(only_subs["events_by_day"][15]) == 1
+    assert len(only_subs["events_by_day"][18]) == 0
+
+    only_home = filter_financial_calendar_events(cal, "Solo Servicios del Hogar")
+    assert len(only_home["events_by_day"][18]) == 1
+    assert len(only_home["events_by_day"][15]) == 0

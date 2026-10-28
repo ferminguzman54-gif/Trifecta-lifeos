@@ -21,6 +21,7 @@ from src.models.finance_models import (
     CardAdvisorRecommendation,
     CardCycleDates,
     FinanceAccountModel,
+    FinanceCategoryModel,
     FinanceSubscriptionModel,
     FinanceTransactionModel,
 )
@@ -422,8 +423,44 @@ def simulate_credit_card_amortization(
 
 
 # ============================================================================
-# 4. CALENDARIO FINANCIERO INTERACTIVO Y MÉTRICAS DE FLUJO DE CAJA
 # ============================================================================
+# 4. CALENDARIO FINANCIERO INTERACTIVO, FILTROS INTELIGENTES Y FLUJO DE CAJA
+# ============================================================================
+
+HOME_SERVICE_KEYWORDS: Tuple[str, ...] = (
+    "internet",
+    "fibra",
+    "telmex",
+    "izzi",
+    "totalplay",
+    "megacable",
+    "starlink",
+    "luz",
+    "cfe",
+    "electricidad",
+    "agua",
+    "gas",
+    "renta",
+    "alquiler",
+    "hipoteca",
+    "mantenimiento",
+    "predial",
+    "telefono",
+    "teléfono",
+    "hogar",
+    "vivienda",
+    "limpieza",
+    "seguridad",
+    "alarma",
+    "servicio",
+)
+
+
+def is_home_service_item(service_name: str, category_name: str = "") -> bool:
+    """Determina si una suscripción o cargo corresponde a un Servicio del Hogar."""
+    combined = f"{service_name or ''} {category_name or ''}".lower()
+    return any(kw in combined for kw in HOME_SERVICE_KEYWORDS)
+
 
 def build_financial_calendar_events(
     accounts: List[Dict[str, Any]],
@@ -431,18 +468,23 @@ def build_financial_calendar_events(
     transactions: List[Dict[str, Any]],
     year: Optional[int] = None,
     month: Optional[int] = None,
+    categories: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """
     Construye el mapa de eventos financieros del mes (y radar de próximos 14 días):
     - 🔵 Fechas de Corte de TDC
     - 🔴 Fechas Límite de Pago de TDC (con saldo actual a pagar)
-    - 🟣 Suscripciones y Pagos Recurrentes
+    - 🟣 Suscripciones Recurrentes y 🏠 Servicios del Hogar
     - 🟢 Ingresos y Gastos registrados
     """
     today = date.today()
     y = int(year or today.year)
     m = int(month or today.month)
     days_in_month = calendar.monthrange(y, m)[1]
+
+    cat_by_id: Dict[str, Dict[str, Any]] = {
+        str(c["id"]): c for c in (categories or []) if c.get("id")
+    }
 
     events_by_day: Dict[int, List[Dict[str, Any]]] = {d: [] for d in range(1, days_in_month + 1)}
     upcoming_14d: List[Dict[str, Any]] = []
@@ -460,6 +502,7 @@ def build_financial_calendar_events(
         events_by_day[cut_date_m.day].append(
             {
                 "kind": "cutoff",
+                "is_home_service": False,
                 "badge": "🔵 Corte TDC",
                 "color": "#3B82F6",
                 "title": f"Corte · {cname}",
@@ -473,6 +516,7 @@ def build_financial_calendar_events(
         events_by_day[pay_date_m.day].append(
             {
                 "kind": "payment_due",
+                "is_home_service": False,
                 "badge": "🔴 Pago Límite TDC",
                 "color": "#EF4444",
                 "title": f"Límite de Pago · {cname}",
@@ -487,6 +531,8 @@ def build_financial_calendar_events(
         if 0 <= cycle.days_until_cutoff <= 14:
             upcoming_14d.append(
                 {
+                    "kind": "cutoff",
+                    "is_home_service": False,
                     "days_left": cycle.days_until_cutoff,
                     "event_date": cycle.statement_cutoff_date,
                     "badge": "🔵 Corte TDC",
@@ -499,6 +545,8 @@ def build_financial_calendar_events(
             pay_dt = today + timedelta(days=cycle.days_until_payment_due)
             upcoming_14d.append(
                 {
+                    "kind": "payment_due",
+                    "is_home_service": False,
                     "days_left": cycle.days_until_payment_due,
                     "event_date": pay_dt,
                     "badge": "🔴 Pago Límite TDC",
@@ -508,21 +556,29 @@ def build_financial_calendar_events(
                 }
             )
 
-    # 2. Eventos de Suscripciones Recurrentes
+    # 2. Eventos de Suscripciones Recurrentes y Servicios del Hogar
     for sub in subscriptions:
         if not bool(sub.get("is_active", True)):
             continue
         sname = str(sub.get("service_name", "Suscripción"))
         samt = float(sub.get("amount") or 0.0)
         bday = int(sub.get("billing_day_of_month") or 1)
+        cat_obj = cat_by_id.get(str(sub.get("category_id") or ""), {})
+        cat_name = str(cat_obj.get("name") or "")
+        is_home = is_home_service_item(sname, cat_name)
+        badge_lbl = "🏠 Servicio Hogar" if is_home else "🟣 Suscripción"
+        ev_color = "#F59E0B" if is_home else "#8B5CF6"
+
         sub_date_m = _safe_date_in_month(y, m, bday)
         events_by_day[sub_date_m.day].append(
             {
                 "kind": "subscription",
-                "badge": "🟣 Suscripción",
-                "color": "#8B5CF6",
+                "is_home_service": is_home,
+                "badge": badge_lbl,
+                "color": ev_color,
                 "title": f"Cobro · {sname}",
-                "subtitle": f"Cargo recurrente ({sub.get('billing_cycle', 'monthly')})",
+                "subtitle": f"Cargo recurrente ({sub.get('billing_cycle', 'monthly')})"
+                + (f" · {cat_name}" if cat_name else ""),
                 "amount": samt,
                 "event_date": sub_date_m,
             }
@@ -531,16 +587,18 @@ def build_financial_calendar_events(
         if 0 <= (sub_date_m - today).days <= 14:
             upcoming_14d.append(
                 {
+                    "kind": "subscription",
+                    "is_home_service": is_home,
                     "days_left": (sub_date_m - today).days,
                     "event_date": sub_date_m,
-                    "badge": "🟣 Suscripción",
-                    "color": "#8B5CF6",
+                    "badge": badge_lbl,
+                    "color": ev_color,
                     "title": f"Cargo recurrente · {sname}",
                     "amount": samt,
                 }
             )
 
-    # 3. Movimientos de Ingreso / Gasto registrados en el mes
+    # 3. Movimientos de Ingreso / Gasto del Hogar registrados en el mes
     for tx in transactions:
         raw_d = str(tx.get("tx_date") or "")[:10]
         try:
@@ -551,14 +609,30 @@ def build_financial_calendar_events(
             tx_type = str(tx.get("tx_type", "expense"))
             amt = float(tx.get("amount") or 0.0)
             concept = str(tx.get("merchant_or_concept", "Movimiento"))
+            cat_obj = cat_by_id.get(str(tx.get("category_id") or ""), {})
+            cat_name = str(cat_obj.get("name") or "")
             if tx_type == "income":
                 events_by_day[tx_d.day].append(
                     {
                         "kind": "income",
+                        "is_home_service": False,
                         "badge": "🟢 Ingreso",
                         "color": "#10B981",
                         "title": concept,
                         "subtitle": f"+${amt:,.2f}",
+                        "amount": amt,
+                        "event_date": tx_d,
+                    }
+                )
+            elif tx_type == "expense" and is_home_service_item(concept, cat_name):
+                events_by_day[tx_d.day].append(
+                    {
+                        "kind": "home_service",
+                        "is_home_service": True,
+                        "badge": "🏠 Servicio Hogar",
+                        "color": "#F59E0B",
+                        "title": concept,
+                        "subtitle": f"Gasto hogar · -${amt:,.2f}",
                         "amount": amt,
                         "event_date": tx_d,
                     }
@@ -571,6 +645,46 @@ def build_financial_calendar_events(
         "days_in_month": days_in_month,
         "events_by_day": events_by_day,
         "upcoming_14d": upcoming_14d,
+    }
+
+
+def filter_financial_calendar_events(
+    cal_data: Dict[str, Any],
+    filter_option: str = "Todos",
+) -> Dict[str, Any]:
+    """
+    Filtra de forma instantánea los eventos del calendario financiero según la opción:
+    [Todos, Solo Cortes TDC, Solo Fechas de Pago, Solo Suscripciones, Solo Servicios del Hogar].
+    """
+    mode = (filter_option or "Todos").strip()
+    if mode == "Todos":
+        return cal_data
+
+    def _matches(ev: Dict[str, Any]) -> bool:
+        kind = str(ev.get("kind", ""))
+        is_home = bool(ev.get("is_home_service", False)) or kind == "home_service"
+        if mode == "Solo Cortes TDC":
+            return kind == "cutoff"
+        if mode == "Solo Fechas de Pago":
+            return kind == "payment_due"
+        if mode == "Solo Suscripciones":
+            return kind == "subscription" and not is_home
+        if mode == "Solo Servicios del Hogar":
+            return is_home
+        return True
+
+    raw_by_day: Dict[int, List[Dict[str, Any]]] = cal_data.get("events_by_day") or {}
+    filtered_by_day: Dict[int, List[Dict[str, Any]]] = {
+        day_num: [ev for ev in ev_list if _matches(ev)]
+        for day_num, ev_list in raw_by_day.items()
+    }
+    raw_upcoming: List[Dict[str, Any]] = cal_data.get("upcoming_14d") or []
+    filtered_upcoming = [ev for ev in raw_upcoming if _matches(ev)]
+
+    return {
+        **cal_data,
+        "events_by_day": filtered_by_day,
+        "upcoming_14d": filtered_upcoming,
     }
 
 
@@ -690,20 +804,23 @@ def calculate_cashflow_and_budget_summary(
 # ============================================================================
 
 @st.cache_data(ttl=300)
-def fetch_finance_accounts(user_id: str, access_token: str) -> List[Dict[str, Any]]:
-    """Lee las cuentas y tarjetas del usuario aisladas por RLS."""
+def fetch_finance_accounts(
+    user_id: str,
+    access_token: str,
+    include_inactive: bool = False,
+) -> List[Dict[str, Any]]:
+    """Lee las cuentas y tarjetas del usuario aisladas por RLS (activas o todas si include_inactive=True)."""
     if not user_id or not access_token:
         return []
     client = get_supabase_client(access_token=access_token)
-    res = (
+    query = (
         client.table("finance_accounts")
         .select("*")
         .eq("user_id", user_id)
-        .eq("is_active", True)
-        .order("account_type")
-        .order("created_at")
-        .execute()
     )
+    if not include_inactive:
+        query = query.eq("is_active", True)
+    res = query.order("account_type").order("created_at").execute()
     return res.data or []
 
 
@@ -836,16 +953,58 @@ def create_finance_account(
         return False, f"Error al crear cuenta/tarjeta: {exc}"
 
 
-def delete_finance_account(user_id: str, account_id: str) -> Tuple[bool, str]:
-    """Archiva o elimina una cuenta/tarjeta de la billetera."""
+def set_finance_account_active_status(
+    user_id: str,
+    account_id: str,
+    is_active: bool,
+) -> Tuple[bool, str]:
+    """
+    Soft-Delete / Reactivación: Actualiza la columna booleana `is_active` de una cuenta
+    de débito o tarjeta de crédito sin destruir el historial de transacciones vinculadas.
+    """
     try:
         access_token = st.session_state.get("access_token") or ""
         client = get_supabase_client(access_token=access_token)
-        client.table("finance_accounts").delete().eq("id", account_id).eq("user_id", user_id).execute()
+        client.table("finance_accounts").update({"is_active": bool(is_active)}).eq(
+            "id", account_id
+        ).eq("user_id", user_id).execute()
         clear_finance_cache()
-        return True, "Cuenta/Tarjeta eliminada."
+        if is_active:
+            return True, "Cuenta / Tarjeta reactivada y visible nuevamente en tu Billetera."
+        return True, "Cuenta / Tarjeta desactivada y archivada (historial conservado intacto)."
     except Exception as exc:
-        return False, f"Error al eliminar tarjeta: {exc}"
+        return False, f"Error al cambiar estado de la cuenta: {exc}"
+
+
+def delete_finance_account(user_id: str, account_id: str) -> Tuple[bool, str]:
+    """
+    Desactiva / archiva la cuenta mediante Soft-Delete (`is_active = False`) para
+    proteger la integridad referencial (Foreign Keys) con transacciones pasadas.
+    """
+    return set_finance_account_active_status(user_id=user_id, account_id=account_id, is_active=False)
+
+
+def update_finance_account_details(
+    user_id: str,
+    account_id: str,
+    new_balance: float,
+    card_gradient_theme: Optional[str] = None,
+    name: Optional[str] = None,
+) -> Tuple[bool, str]:
+    """Actualiza el saldo/deuda, alias o la carátula visual (`card_gradient_theme`) de una cuenta/TDC."""
+    try:
+        access_token = st.session_state.get("access_token") or ""
+        payload: Dict[str, Any] = {"current_balance": max(0.0, round(float(new_balance), 2))}
+        if card_gradient_theme:
+            payload["card_gradient_theme"] = str(card_gradient_theme)
+        if name and name.strip():
+            payload["name"] = name.strip()
+        client = get_supabase_client(access_token=access_token)
+        client.table("finance_accounts").update(payload).eq("id", account_id).eq("user_id", user_id).execute()
+        clear_finance_cache()
+        return True, "Cuenta / Tarjeta actualizada correctamente."
+    except Exception as exc:
+        return False, f"Error al actualizar la cuenta: {exc}"
 
 
 def seed_sample_wallet_for_user(user_id: str) -> Tuple[bool, str]:
@@ -1064,6 +1223,57 @@ def create_finance_subscription(
         return False, f"Error al crear suscripción: {exc}"
 
 
+def update_finance_subscription(
+    user_id: str,
+    subscription_id: str,
+    service_name: str,
+    amount: float,
+    billing_cycle: str,
+    billing_day_of_month: int,
+    next_billing_date: Optional[date] = None,
+    account_id: Optional[str] = None,
+    category_id: Optional[str] = None,
+    is_active: bool = True,
+) -> Tuple[bool, str]:
+    """Actualiza en Supabase una suscripción o pago recurrente existente."""
+    try:
+        access_token = st.session_state.get("access_token") or ""
+        today = date.today()
+        bday = max(1, min(31, int(billing_day_of_month or 1)))
+        if next_billing_date is not None:
+            next_bill = next_billing_date
+        else:
+            this_m_date = _safe_date_in_month(today.year, today.month, bday)
+            if this_m_date >= today:
+                next_bill = this_m_date
+            else:
+                ny, nm = _next_year_month(today.year, today.month)
+                next_bill = _safe_date_in_month(ny, nm, bday)
+
+        validated = FinanceSubscriptionModel(
+            user_id=user_id,
+            account_id=account_id if account_id else None,
+            category_id=category_id if category_id else None,
+            service_name=service_name.strip(),
+            amount=float(amount),
+            billing_cycle=billing_cycle,  # type: ignore[arg-type]
+            billing_day_of_month=bday,
+            next_billing_date=next_bill,
+            is_active=bool(is_active),
+        )
+        payload = validated.model_dump(exclude={"id", "user_id"})
+        payload["next_billing_date"] = validated.next_billing_date.isoformat()
+
+        client = get_supabase_client(access_token=access_token)
+        client.table("finance_subscriptions").update(payload).eq("id", subscription_id).eq(
+            "user_id", user_id
+        ).execute()
+        clear_finance_cache()
+        return True, f"Suscripción «{validated.service_name}» actualizada correctamente."
+    except Exception as exc:
+        return False, f"Error al actualizar suscripción: {exc}"
+
+
 def delete_finance_subscription(user_id: str, sub_id: str) -> Tuple[bool, str]:
     """Elimina una suscripción recurrente."""
     try:
@@ -1074,6 +1284,73 @@ def delete_finance_subscription(user_id: str, sub_id: str) -> Tuple[bool, str]:
         return True, "Suscripción eliminada."
     except Exception as exc:
         return False, f"Error al eliminar suscripción: {exc}"
+
+
+def create_finance_category(
+    user_id: str,
+    name: str,
+    kind: str = "expense",
+    icon: str = "💳",
+    monthly_budget_limit: float = 0.0,
+    color_hex: str = "#10B981",
+    is_essential: bool = True,
+) -> Tuple[bool, str]:
+    """Crea una nueva categoría personalizada de gasto, ingreso o transferencia en Supabase."""
+    try:
+        access_token = st.session_state.get("access_token") or ""
+        validated = FinanceCategoryModel(
+            user_id=user_id,
+            name=name.strip(),
+            kind=kind,  # type: ignore[arg-type]
+            monthly_budget_limit=max(0.0, round(float(monthly_budget_limit or 0.0), 2))
+            if kind == "expense"
+            else 0.0,
+            icon=(icon or "💳").strip(),
+            color_hex=color_hex or ("#10B981" if kind == "income" else "#3B82F6"),
+            is_essential=bool(is_essential),
+        )
+        payload = validated.model_dump(exclude={"id"})
+        client = get_supabase_client(access_token=access_token)
+        client.table("finance_categories").insert(payload).execute()
+        clear_finance_cache()
+        return True, f"Categoría «{validated.icon} {validated.name}» creada exitosamente."
+    except Exception as exc:
+        return False, f"Error al crear categoría: {exc}"
+
+
+def update_finance_category(
+    user_id: str,
+    category_id: str,
+    name: str,
+    kind: str = "expense",
+    icon: str = "💳",
+    monthly_budget_limit: float = 0.0,
+    color_hex: str = "#10B981",
+    is_essential: bool = True,
+) -> Tuple[bool, str]:
+    """Actualiza el nombre, icono emoji, tipo (gasto/ingreso) y límite mensual de una categoría."""
+    try:
+        access_token = st.session_state.get("access_token") or ""
+        validated = FinanceCategoryModel(
+            user_id=user_id,
+            name=name.strip(),
+            kind=kind,  # type: ignore[arg-type]
+            monthly_budget_limit=max(0.0, round(float(monthly_budget_limit or 0.0), 2))
+            if kind == "expense"
+            else 0.0,
+            icon=(icon or "💳").strip(),
+            color_hex=color_hex or "#10B981",
+            is_essential=bool(is_essential),
+        )
+        payload = validated.model_dump(exclude={"id", "user_id"})
+        client = get_supabase_client(access_token=access_token)
+        client.table("finance_categories").update(payload).eq("id", category_id).eq(
+            "user_id", user_id
+        ).execute()
+        clear_finance_cache()
+        return True, f"Categoría «{validated.icon} {validated.name}» actualizada."
+    except Exception as exc:
+        return False, f"Error al actualizar categoría: {exc}"
 
 
 def update_category_budget_limit(

@@ -3,9 +3,10 @@ Pruebas unitarias exhaustivas del motor de sobrecarga progresiva (4 reglas PRD �
 fórmulas 1RM (Epley y Brzycki), analítica de descanso/densidad y agregación de volumen
 ponderado (1.0 primario / 0.5 secundario) en los 8 horizontes temporales (1D a 1Y + YTD).
 """
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from src.config.settings import TIMEFRAME_CONFIG
+from src.models.workout_models import ExerciseModel, WorkoutWeeklyPlanModel
 from src.services.progression_engine import (
     calculate_brzycki_1rm,
     calculate_epley_1rm,
@@ -13,6 +14,7 @@ from src.services.progression_engine import (
     calculate_relative_intensity_pct,
     calculate_rest_and_density_metrics,
     evaluate_progression_from_sessions,
+    get_monday_of_week,
 )
 
 
@@ -164,3 +166,33 @@ def test_rest_and_density_metrics_and_correlation() -> None:
     assert metrics.avg_rest_actual_seconds == 95.0
     assert metrics.rest_rpe_correlation is not None
     assert metrics.rest_rpe_correlation < -0.90
+
+
+def test_exercise_notes_and_weekly_planner_models() -> None:
+    ex = ExerciseModel(
+        user_id="u-1",
+        name="Press Inclinado con Mancuernas",
+        equipment="dumbbell",
+        primary_muscle="chest",
+        secondary_muscles=["front_delts", "triceps"],
+        movement_pattern="compound",
+        notes="Banco a 30 grados y pausa de 1s abajo",
+    )
+    assert ex.notes == "Banco a 30 grados y pausa de 1s abajo"
+
+    wed = date(2026, 10, 28)
+    mon = get_monday_of_week(wed)
+    assert mon == date(2026, 10, 26)
+    assert mon.weekday() == 0
+
+    plan_item = WorkoutWeeklyPlanModel(
+        user_id="u-1",
+        plan_date=mon,
+        day_of_week=mon.weekday(),
+        focus_title="Empuje · Pecho y Tríceps",
+        routine_id="r-1",
+        status="planned",
+        notes="7:00 AM",
+    )
+    assert plan_item.status == "planned"
+    assert plan_item.day_of_week == 0

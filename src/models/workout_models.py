@@ -58,6 +58,37 @@ SET_TYPE_LABELS: Dict[str, Dict[str, str]] = {
 
 REST_PRESETS_SECONDS: List[int] = [60, 90, 120, 180]
 
+WeeklyPlanStatus = Literal["planned", "completed", "rest"]
+
+WEEKLY_PLAN_STATUS_LABELS: Dict[str, Dict[str, str]] = {
+    "planned": {"label": "📅 Planificado", "color": "#3B82F6", "bg": "#3B82F61F"},
+    "completed": {"label": "✅ Completado", "color": "#10B981", "bg": "#10B9811F"},
+    "rest": {"label": "🧘 Descanso", "color": "#94A3B8", "bg": "#94A3B81F"},
+}
+
+SPANISH_WEEKDAYS: List[str] = [
+    "Lunes",
+    "Martes",
+    "Miércoles",
+    "Jueves",
+    "Viernes",
+    "Sábado",
+    "Domingo",
+]
+
+WORKOUT_FOCUS_PRESETS: List[str] = [
+    "Empuje · Pecho, Hombro y Tríceps (Push)",
+    "Tirón · Espalda y Bíceps (Pull)",
+    "Pierna Hipertrofia y Glúteo (Legs)",
+    "Torso Completo (Upper Body)",
+    "Tren Inferior Fuerza (Lower Body)",
+    "Pecho y Espalda (Antagonistas)",
+    "Hombros y Brazos (Delts & Arms)",
+    "Cuerpo Completo (Full Body)",
+    "Cardio / Acondicionamiento y Core",
+    "Descanso Activo / Movilidad",
+]
+
 
 class ExerciseModel(BaseModel):
     id: Optional[str] = None
@@ -67,6 +98,18 @@ class ExerciseModel(BaseModel):
     primary_muscle: MuscleGroup
     secondary_muscles: List[MuscleGroup] = Field(default_factory=list)
     movement_pattern: Literal["compound", "isolation"] = "compound"
+    notes: str = ""
+
+
+class WorkoutWeeklyPlanModel(BaseModel):
+    id: Optional[str] = None
+    user_id: str
+    plan_date: date
+    day_of_week: int = Field(default=0, ge=0, le=6)
+    focus_title: str = Field(default="Entrenamiento", min_length=1, max_length=120)
+    routine_id: Optional[str] = None
+    status: WeeklyPlanStatus = "planned"
+    notes: str = ""
 
 
 class WorkoutRoutineModel(BaseModel):

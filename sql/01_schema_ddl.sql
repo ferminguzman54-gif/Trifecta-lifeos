@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS public.exercises (
         )),
     secondary_muscles TEXT[] NOT NULL DEFAULT '{}',
     movement_pattern TEXT NOT NULL DEFAULT 'compound' CHECK (movement_pattern IN ('compound', 'isolation')),
+    notes TEXT DEFAULT '',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -78,7 +79,7 @@ CREATE POLICY "exercises_write_own" ON public.exercises
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 DROP POLICY IF EXISTS "exercises_update_own" ON public.exercises;
 CREATE POLICY "exercises_update_own" ON public.exercises
-    FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+    FOR UPDATE USING (user_id IS NULL OR auth.uid() = user_id) WITH CHECK (user_id IS NULL OR auth.uid() = user_id);
 DROP POLICY IF EXISTS "exercises_delete_own" ON public.exercises;
 CREATE POLICY "exercises_delete_own" ON public.exercises
     FOR DELETE USING (auth.uid() = user_id);
@@ -180,6 +181,30 @@ CREATE INDEX IF NOT EXISTS idx_workout_sets_user_exercise
 ALTER TABLE public.workout_sets ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "workout_sets_owner" ON public.workout_sets;
 CREATE POLICY "workout_sets_owner" ON public.workout_sets
+    FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- 1.5b Planificador Semanal de Entrenamientos
+CREATE TABLE IF NOT EXISTS public.workout_weekly_plan (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    plan_date DATE NOT NULL,
+    day_of_week INT NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
+    focus_title TEXT NOT NULL DEFAULT 'Entrenamiento',
+    routine_id UUID REFERENCES public.workout_routines(id) ON DELETE SET NULL,
+    status TEXT NOT NULL DEFAULT 'planned'
+        CHECK (status IN ('planned', 'completed', 'rest')),
+    notes TEXT DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (user_id, plan_date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_workout_weekly_plan_user_date
+    ON public.workout_weekly_plan (user_id, plan_date ASC);
+
+ALTER TABLE public.workout_weekly_plan ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "workout_weekly_plan_owner" ON public.workout_weekly_plan;
+CREATE POLICY "workout_weekly_plan_owner" ON public.workout_weekly_plan
     FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 -- 1.6 BASE ARQUITECTÓNICA RESERVADA PARA FUTURO MÓDULO DE NUTRICIÓN

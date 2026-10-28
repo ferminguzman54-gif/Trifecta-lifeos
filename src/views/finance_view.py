@@ -1,6 +1,7 @@
 """
 Vista de Finanzas Personales, Billetera Digital tipo Apple Wallet, Calendario Financiero
-y Simulador Inteligente de Tarjetas de Crédito (Sprint 4 — Pilar 2).
+con Filtros Inteligentes, Gestor Integral de Categorías, Edición de Suscripciones,
+Soft-Delete de Cuentas y Simulador Inteligente de Tarjetas de Crédito.
 Sigue estrictamente 01_PRD (§3), 02_TRD (§5.2), 03_Appflow (§5) y 04_UI_UX_Design_Brief.
 """
 from __future__ import annotations
@@ -21,6 +22,9 @@ from src.config.theme import CARD_GRADIENTS, PALETTE, render_pillar_header
 from src.models.finance_models import (
     ACCOUNT_TYPE_LABELS,
     BILLING_CYCLE_LABELS,
+    CALENDAR_FILTER_OPTIONS,
+    CATEGORY_KIND_LABELS,
+    COMMON_CATEGORY_EMOJIS,
     TX_TYPE_LABELS,
 )
 from src.services.card_advisor_engine import (
@@ -28,9 +32,9 @@ from src.services.card_advisor_engine import (
     calculate_card_cycle_dates,
     calculate_cashflow_and_budget_summary,
     create_finance_account,
+    create_finance_category,
     create_finance_subscription,
     create_finance_transaction,
-    delete_finance_account,
     delete_finance_subscription,
     delete_finance_transaction,
     evaluate_best_payment_cards,
@@ -38,10 +42,14 @@ from src.services.card_advisor_engine import (
     fetch_finance_categories,
     fetch_finance_subscriptions,
     fetch_finance_transactions,
+    filter_financial_calendar_events,
     seed_sample_wallet_for_user,
+    set_finance_account_active_status,
     simulate_credit_card_amortization,
     update_category_budget_limit,
-    update_finance_account_balance,
+    update_finance_account_details,
+    update_finance_category,
+    update_finance_subscription,
 )
 
 
@@ -62,12 +70,8 @@ SPANISH_MONTHS: List[str] = [
 
 
 # =====================================================================
-# PARCHE: HTML de las tarjetas (render_credit_card_widget) mostrado como código
+# APLANADO SEGURO DE HTML PARA EVITAR BLOQUES DE CÓDIGO EN STREAMLIT
 # =====================================================================
-# El widget arma su HTML con líneas sangradas (4+ espacios) y Markdown lo interpreta
-# como bloque de código (se ve «<div style=...» en pantalla). Mientras se dibuja la
-# tarjeta, st.markdown(..., unsafe_allow_html=True) aplana el HTML a una sola línea.
-# Solución definitiva: aplicar el mismo aplanado dentro de credit_card_widget.py.
 
 _HTML_FLAT_STATE = threading.local()
 
@@ -115,7 +119,7 @@ def _open_new_transaction_dialog(
 ) -> None:
     """Modal móvil para registrar gastos, ingresos, pagos de TDC o transferencias."""
     if not accounts:
-        st.warning("Primero crea una cuenta o genera la Billetera Demo para registrar movimientos.")
+        st.warning("Primero crea o reactiva una cuenta para registrar movimientos.")
         return
 
     tx_type_ui = (
@@ -414,10 +418,21 @@ def _open_new_account_dialog(user_id: str, currency: str) -> None:
             )
 
     card_gradient_theme = st.selectbox(
-        "Estilo visual Apple Wallet",
+        "Carátula y paleta Apple Wallet",
         options=list(CARD_GRADIENTS.keys()),
         format_func=lambda k: CARD_GRADIENTS[k]["label"],
         key="dlg_acc_theme",
+    )
+
+    preview_theme = CARD_GRADIENTS.get(card_gradient_theme, CARD_GRADIENTS["indigo_neon"])
+    st.markdown(
+        f"""
+<div style="background:{preview_theme['css']}; border:1px solid {preview_theme['border']}; border-radius:12px; padding:10px 14px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+<span style="font-size:0.82rem; font-weight:700; color:{preview_theme.get('text_color', '#F8FAFC')};">Vista previa · {preview_theme['label']}</span>
+<span style="font-size:0.72rem; font-weight:700; padding:3px 9px; border-radius:999px; background:{preview_theme.get('badge_bg', 'rgba(10,13,20,0.6)')}; color:{preview_theme.get('badge_text_color', '#F8FAFC')}; border:1px solid {preview_theme.get('badge_border', 'rgba(255,255,255,0.3)')};">✨ {cashback_pct:g}% Cashback</span>
+</div>
+""",
+        unsafe_allow_html=True,
     )
 
     if st.button("✨ Crear Cuenta / Tarjeta", type="primary", use_container_width=True, key="dlg_acc_submit"):
@@ -461,7 +476,7 @@ def _open_new_subscription_dialog(
 
     service_name = st.text_input(
         "Nombre del servicio o cargo recurrente",
-        placeholder="Ej. Spotify, Gimnasio, Internet Fibra, Seguro Auto...",
+        placeholder="Ej. Spotify, Gimnasio, Internet Fibra, Luz CFE...",
         key="dlg_sub_name",
     )
     col_a, col_b, col_c = st.columns([1.1, 1, 1])
@@ -476,7 +491,7 @@ def _open_new_subscription_dialog(
         )
     with col_b:
         billing_cycle = st.selectbox(
-            "Frecuencia",
+            "Periodicidad",
             options=list(BILLING_CYCLE_LABELS.keys()),
             index=2,  # monthly
             format_func=lambda c: BILLING_CYCLE_LABELS.get(c, c),
@@ -533,6 +548,285 @@ def _open_new_subscription_dialog(
             st.error(msg)
 
 
+@st.dialog("✏️ Editar Suscripción o Cargo Recurrente")
+def _open_edit_subscription_dialog(
+    user_id: str,
+    currency: str,
+    subscription: Dict[str, Any],
+    accounts: List[Dict[str, Any]],
+    categories: List[Dict[str, Any]],
+) -> None:
+    """Modal para editar una suscripción existente (nombre, monto, periodicidad, fecha, cuenta y categoría)."""
+    sub_id = str(subscription.get("id") or "")
+    curr_name = str(subscription.get("service_name") or "")
+    curr_amount = float(subscription.get("amount") or 199.0)
+    curr_cycle = str(subscription.get("billing_cycle") or "monthly")
+    curr_day = max(1, min(31, int(subscription.get("billing_day_of_month") or 1)))
+    curr_acc_id = str(subscription.get("account_id") or "")
+    curr_cat_id = str(subscription.get("category_id") or "")
+
+    raw_next_date = str(subscription.get("next_billing_date") or "")[:10]
+    try:
+        curr_next_date = date.fromisoformat(raw_next_date)
+    except ValueError:
+        curr_next_date = date.today()
+
+    service_name = st.text_input(
+        "Nombre del servicio o cargo recurrente",
+        value=curr_name,
+        key=f"dlg_edit_sub_name_{sub_id}",
+    )
+
+    col_a, col_b = st.columns(2)
+    with col_a:
+        amount = st.number_input(
+            f"Monto ({currency})",
+            min_value=1.0,
+            value=max(1.0, curr_amount),
+            step=20.0,
+            format="%.2f",
+            key=f"dlg_edit_sub_amt_{sub_id}",
+        )
+    with col_b:
+        cycle_keys = list(BILLING_CYCLE_LABELS.keys())
+        cycle_idx = cycle_keys.index(curr_cycle) if curr_cycle in cycle_keys else 2
+        billing_cycle = st.selectbox(
+            "Periodicidad",
+            options=cycle_keys,
+            index=cycle_idx,
+            format_func=lambda c: BILLING_CYCLE_LABELS.get(c, c),
+            key=f"dlg_edit_sub_cycle_{sub_id}",
+        )
+
+    col_d1, col_d2 = st.columns(2)
+    with col_d1:
+        billing_day = st.number_input(
+            "Día de corte / cobro mensual (1–31)",
+            min_value=1,
+            max_value=31,
+            value=curr_day,
+            step=1,
+            key=f"dlg_edit_sub_day_{sub_id}",
+        )
+    with col_d2:
+        next_billing_date = st.date_input(
+            "Próxima fecha de renovación",
+            value=curr_next_date,
+            key=f"dlg_edit_sub_nextdate_{sub_id}",
+        )
+
+    acc_map = {str(a["id"]): f"{a['name']} ({a.get('institution_name', 'Banco')})" for a in accounts}
+    account_id = None
+    if acc_map:
+        acc_keys = list(acc_map.keys())
+        acc_idx = acc_keys.index(curr_acc_id) if curr_acc_id in acc_keys else 0
+        account_id = st.selectbox(
+            "Cuenta o TDC asociada",
+            options=acc_keys,
+            index=acc_idx,
+            format_func=lambda k: acc_map[k],
+            key=f"dlg_edit_sub_acc_{sub_id}",
+        )
+
+    expense_cats = [c for c in categories if str(c.get("kind", "expense")) == "expense"] or categories
+    cat_map = {str(c["id"]): f"{c.get('icon', '🔄')} {c.get('name')}" for c in expense_cats}
+    category_id = None
+    if cat_map:
+        cat_keys = list(cat_map.keys())
+        cat_idx = cat_keys.index(curr_cat_id) if curr_cat_id in cat_keys else 0
+        category_id = st.selectbox(
+            "Categoría asociada",
+            options=cat_keys,
+            index=cat_idx,
+            format_func=lambda k: cat_map[k],
+            key=f"dlg_edit_sub_cat_{sub_id}",
+        )
+
+    if st.button("💾 Guardar Cambios", type="primary", use_container_width=True, key=f"dlg_edit_sub_save_{sub_id}"):
+        if not service_name.strip():
+            st.warning("El nombre del servicio no puede estar vacío.")
+            return
+        ok, msg = update_finance_subscription(
+            user_id=user_id,
+            subscription_id=sub_id,
+            service_name=service_name.strip(),
+            amount=float(amount),
+            billing_cycle=billing_cycle,
+            billing_day_of_month=int(billing_day),
+            next_billing_date=next_billing_date,
+            account_id=account_id,
+            category_id=category_id,
+            is_active=True,
+        )
+        if ok:
+            st.toast(msg, icon="✅")
+            st.rerun()
+        else:
+            st.error(msg)
+
+
+@st.dialog("🏷️ Gestor Integral de Categorías")
+def _open_category_manager_dialog(
+    user_id: str,
+    currency: str,
+    categories: List[Dict[str, Any]],
+) -> None:
+    """Modal para crear nuevas categorías personalizadas y editar las existentes (gasto/ingreso, emoji, nombre, presupuesto)."""
+    tab_create, tab_edit = st.tabs(["➕ Crear Categoría", "✏️ Editar Existentes"])
+
+    with tab_create:
+        st.caption("Crea categorías personalizadas de gasto o ingreso con tu icono emoji favorito.")
+        c_name = st.text_input(
+            "Nombre de la categoría",
+            placeholder="Ej. Mascotas, Cafeterías, Dividendos, Freelance...",
+            key="dlg_cat_new_name",
+        )
+        col_k, col_em = st.columns([1.2, 1])
+        with col_k:
+            c_kind = st.selectbox(
+                "Tipo de flujo",
+                options=["expense", "income", "transfer"],
+                format_func=lambda k: CATEGORY_KIND_LABELS.get(k, k),
+                key="dlg_cat_new_kind",
+            )
+        with col_em:
+            c_emoji_preset = st.selectbox(
+                "Icono Emoji",
+                options=COMMON_CATEGORY_EMOJIS,
+                key="dlg_cat_new_emoji_sel",
+            )
+        c_custom_emoji = st.text_input(
+            "O escribe otro emoji personalizado (opcional)",
+            value="",
+            max_chars=4,
+            placeholder="Ej. 🐶, 🎮, 🌮",
+            key="dlg_cat_new_emoji_custom",
+        )
+        c_budget = 0.0
+        if c_kind == "expense":
+            c_budget = st.number_input(
+                f"Presupuesto mensual límite ({currency})",
+                min_value=0.0,
+                value=1500.0,
+                step=250.0,
+                format="%.2f",
+                key="dlg_cat_new_budget",
+            )
+        c_essential = st.checkbox(
+            "Es una categoría esencial / prioritaria",
+            value=(c_kind == "expense"),
+            key="dlg_cat_new_essential",
+        )
+
+        if st.button("✨ Crear Categoría", type="primary", use_container_width=True, key="dlg_cat_new_submit"):
+            if not c_name.strip():
+                st.warning("Ingresa un nombre para la categoría.")
+                return
+            chosen_icon = c_custom_emoji.strip() or c_emoji_preset
+            ok, msg = create_finance_category(
+                user_id=user_id,
+                name=c_name.strip(),
+                kind=c_kind,
+                icon=chosen_icon,
+                monthly_budget_limit=float(c_budget),
+                is_essential=bool(c_essential),
+            )
+            if ok:
+                st.toast(msg, icon="🏷️")
+                st.rerun()
+            else:
+                st.error(msg)
+
+    with tab_edit:
+        if not categories:
+            st.info("Aún no hay categorías registradas.")
+        else:
+            cat_options = {
+                str(c["id"]): f"{c.get('icon', '💳')} {c.get('name')} ({CATEGORY_KIND_LABELS.get(str(c.get('kind', 'expense')), 'Gasto')})"
+                for c in categories
+            }
+            sel_cat_id = st.selectbox(
+                "Selecciona la categoría a editar",
+                options=list(cat_options.keys()),
+                format_func=lambda cid: cat_options[cid],
+                key="dlg_cat_edit_selector",
+            )
+            target_cat = next((c for c in categories if str(c["id"]) == sel_cat_id), categories[0])
+            tc_id = str(target_cat["id"])
+            curr_icon = str(target_cat.get("icon") or "💳")
+            curr_kind = str(target_cat.get("kind") or "expense")
+
+            ed_name = st.text_input(
+                "Renombrar categoría",
+                value=str(target_cat.get("name") or ""),
+                key=f"dlg_cat_ed_name_{tc_id}",
+            )
+            col_ek, col_eem = st.columns([1.2, 1])
+            with col_ek:
+                kind_opts = ["expense", "income", "transfer"]
+                k_idx = kind_opts.index(curr_kind) if curr_kind in kind_opts else 0
+                ed_kind = st.selectbox(
+                    "Definir como Gasto o Ingreso",
+                    options=kind_opts,
+                    index=k_idx,
+                    format_func=lambda k: CATEGORY_KIND_LABELS.get(k, k),
+                    key=f"dlg_cat_ed_kind_{tc_id}",
+                )
+            with col_eem:
+                emoji_list = list(dict.fromkeys([curr_icon] + COMMON_CATEGORY_EMOJIS))
+                ed_emoji_sel = st.selectbox(
+                    "Cambiar icono emoji",
+                    options=emoji_list,
+                    index=0,
+                    key=f"dlg_cat_ed_emoji_{tc_id}",
+                )
+            ed_emoji_custom = st.text_input(
+                "O escribe un emoji distinto",
+                value="",
+                max_chars=4,
+                placeholder="Ej. 🎯, 🏡, 💡",
+                key=f"dlg_cat_ed_custom_em_{tc_id}",
+            )
+
+            ed_budget = float(target_cat.get("monthly_budget_limit") or 0.0)
+            if ed_kind == "expense":
+                ed_budget = st.number_input(
+                    f"Presupuesto mensual límite ({currency})",
+                    min_value=0.0,
+                    value=ed_budget,
+                    step=250.0,
+                    format="%.2f",
+                    key=f"dlg_cat_ed_budget_{tc_id}",
+                )
+
+            ed_essential = st.checkbox(
+                "Categoría esencial",
+                value=bool(target_cat.get("is_essential", True)),
+                key=f"dlg_cat_ed_ess_{tc_id}",
+            )
+
+            if st.button("💾 Actualizar Categoría", type="primary", use_container_width=True, key=f"dlg_cat_ed_save_{tc_id}"):
+                if not ed_name.strip():
+                    st.warning("El nombre de la categoría no puede estar vacío.")
+                    return
+                final_icon = ed_emoji_custom.strip() or ed_emoji_sel
+                ok, msg = update_finance_category(
+                    user_id=user_id,
+                    category_id=tc_id,
+                    name=ed_name.strip(),
+                    kind=ed_kind,
+                    icon=final_icon,
+                    monthly_budget_limit=float(ed_budget) if ed_kind == "expense" else 0.0,
+                    color_hex=str(target_cat.get("color_hex") or "#10B981"),
+                    is_essential=bool(ed_essential),
+                )
+                if ok:
+                    st.toast(msg, icon="✅")
+                    st.rerun()
+                else:
+                    st.error(msg)
+
+
 # =====================================================================
 # FRAGMENTOS INTERACTIVOS DEL SIMULADOR INTELIGENTE DE TDC
 # =====================================================================
@@ -552,14 +846,12 @@ def _render_card_advisor_simulator_fragment(
     """
     st.markdown(
         """
-<div style="background:rgba(16,185,129,0.10); border:1px solid rgba(16,185,129,0.35);
-border-radius:12px; padding:12px 14px; margin-bottom:12px;">
+<div style="background:rgba(16,185,129,0.10); border:1px solid rgba(16,185,129,0.35); border-radius:12px; padding:12px 14px; margin-bottom:12px;">
 <div style="font-size:0.78rem; font-weight:700; color:#10B981; text-transform:uppercase; letter-spacing:0.05em;">
 🧠 Motor Algorítmico · ¿Con qué tarjeta pago hoy?
 </div>
 <div style="font-size:0.82rem; color:#94A3B8; margin-top:2px;">
-Compara tus tarjetas activas ponderando: <b>45% Días de financiamiento post-corte</b> ·
-<b>25% Cashback</b> · <b>20% Salud de utilización (&le;30%)</b> · <b>10% Presupuesto de categoría</b>.
+Compara tus tarjetas activas ponderando: <b>45% Días de financiamiento post-corte</b> · <b>25% Cashback</b> · <b>20% Salud de utilización (&le;30%)</b> · <b>10% Presupuesto de categoría</b>.
 </div>
 </div>
 """,
@@ -600,7 +892,6 @@ Compara tus tarjetas activas ponderando: <b>45% Días de financiamiento post-cor
             key="sim_advisor_date",
         )
 
-    # Obtener presupuesto remanente de la categoría seleccionada
     cat_rem_budget = None
     if sim_cat_id:
         cat_rows = budget_summary.get("categories_breakdown") or []
@@ -616,7 +907,7 @@ Compara tus tarjetas activas ponderando: <b>45% Días de financiamiento post-cor
     )
 
     if not recommendations:
-        st.info("Agrega al menos una Tarjeta de Crédito (TDC) en tu billetera para usar el recomendador.")
+        st.info("Agrega o activa al menos una Tarjeta de Crédito (TDC) en tu billetera para usar el recomendador.")
         return
 
     winner = recommendations[0]
@@ -637,12 +928,9 @@ Compara tus tarjetas activas ponderando: <b>45% Días de financiamiento post-cor
 
     st.markdown(
         f"""
-<div style="background:linear-gradient(145deg, #121722 0%, #192234 100%);
-border:2px solid {win_border}; border-radius:14px; padding:16px; margin:8px 0 12px 0;
-box-shadow:0 10px 26px rgba(0,0,0,0.45);">
+<div style="background:linear-gradient(145deg, #121722 0%, #192234 100%); border:2px solid {win_border}; border-radius:14px; padding:16px; margin:8px 0 12px 0; box-shadow:0 10px 26px rgba(0,0,0,0.45);">
 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
-<span style="font-size:0.73rem; font-weight:700; padding:4px 10px; border-radius:999px;
-background:{win_badge_bg}; color:{win_border}; border:1px solid {win_border}66;">
+<span style="font-size:0.73rem; font-weight:700; padding:4px 10px; border-radius:999px; background:{win_badge_bg}; color:{win_border}; border:1px solid {win_border}66;">
 {win_badge_txt}
 </span>
 <span style="font-size:0.78rem; color:#94A3B8; font-family:'JetBrains Mono', monospace;">
@@ -687,16 +975,14 @@ Liquidar el: <b style="color:#F8FAFC;">{winner.payment_due_date.strftime('%d/%b/
 </div>
 </div>
 """,
-unsafe_allow_html=True,
+        unsafe_allow_html=True,
     )
 
-    # Mostrar alertas sobre días óptimos de compra (esperar al día después de la fecha de corte)
     cutoff_tips = [r for r in recommendations if r.wait_for_cutoff_tip]
     for tip_card in cutoff_tips:
         st.markdown(
             f"""
-<div style="background:rgba(245,158,11,0.14); border:1px solid rgba(245,158,11,0.45);
-border-radius:10px; padding:10px 12px; margin-bottom:10px;">
+<div style="background:rgba(245,158,11,0.14); border:1px solid rgba(245,158,11,0.45); border-radius:10px; padding:10px 12px; margin-bottom:10px;">
 <div style="font-size:0.76rem; font-weight:700; color:#F59E0B;">
 ⚡ ALERTA DE DÍA ÓPTIMO DE COMPRA · {tip_card.card_name}
 </div>
@@ -715,16 +1001,13 @@ border-radius:10px; padding:10px 12px; margin-bottom:10px;">
                 score_txt = f"{rec.total_score:.1f} pts" if rec.is_eligible else "Excede línea"
                 st.markdown(
                     f"""
-<div style="display:flex; justify-content:space-between; align-items:center;
-background:#121722; border:1px solid #263044; border-radius:10px;
-padding:10px 12px; margin-bottom:6px;">
+<div style="display:flex; justify-content:space-between; align-items:center; background:#121722; border:1px solid #263044; border-radius:10px; padding:10px 12px; margin-bottom:6px;">
 <div>
 <div style="font-size:0.88rem; font-weight:700; color:#F8FAFC;">
 {status_icon} #{idx} {rec.card_name} <span style="font-size:0.75rem; color:#94A3B8;">({rec.optimal_window_badge})</span>
 </div>
 <div style="font-size:0.74rem; color:#94A3B8;">
-{rec.float_days}d libres (paga {rec.payment_due_date.strftime('%d/%b')}) ·
-Cashback +${rec.cashback_earned:,.2f} · Utilización {rec.utilization_after_pct:.1f}%
+{rec.float_days}d libres (paga {rec.payment_due_date.strftime('%d/%b')}) · Cashback +${rec.cashback_earned:,.2f} · Utilización {rec.utilization_after_pct:.1f}%
 </div>
 </div>
 <div style="text-align:right;">
@@ -752,8 +1035,7 @@ def _render_amortization_and_minimum_payment_simulator_fragment(
     """
     st.markdown(
         """
-<div style="background:rgba(59,130,246,0.10); border:1px solid rgba(59,130,246,0.35);
-border-radius:12px; padding:12px 14px; margin:16px 0 12px 0;">
+<div style="background:rgba(59,130,246,0.10); border:1px solid rgba(59,130,246,0.35); border-radius:12px; padding:12px 14px; margin:16px 0 12px 0;">
 <div style="font-size:0.78rem; font-weight:700; color:#38BDF8; text-transform:uppercase; letter-spacing:0.05em;">
 📉 Simulador de Pago para No Generar Intereses, Pago Mínimo y Amortización
 </div>
@@ -903,7 +1185,7 @@ Conoce el costo real del interés compuesto en tu TDC y proyecta tu tabla de liq
 
 
 # =====================================================================
-# VISTA PRINCIPAL DE FINANZAS PERSONALES (SPRINT 4)
+# VISTA PRINCIPAL DE FINANZAS PERSONALES
 # =====================================================================
 
 
@@ -925,7 +1207,10 @@ def render_finance_view() -> None:
         badge_text=f"💳 Pilar 2 · {currency}",
     )
 
-    accounts = fetch_finance_accounts(user_id, access_token)
+    all_accounts = fetch_finance_accounts(user_id, access_token, include_inactive=True)
+    accounts = [a for a in all_accounts if bool(a.get("is_active", True))]
+    inactive_accounts = [a for a in all_accounts if not bool(a.get("is_active", True))]
+
     categories = fetch_finance_categories(user_id, access_token)
     transactions = fetch_finance_transactions(user_id, access_token, days_back=120)
     subscriptions = fetch_finance_subscriptions(user_id, access_token)
@@ -942,7 +1227,7 @@ def render_finance_view() -> None:
     liquid_accounts = [a for a in accounts if str(a.get("account_type")) != "credit_card"]
 
     # ── Barra Superior de Acciones Rápidas (Ergonomía One-Handed) ──
-    btn_c1, btn_c2, btn_c3 = st.columns([1.25, 1.15, 1.0])
+    btn_c1, btn_c2, btn_c3, btn_c4 = st.columns([1.15, 1.15, 1.05, 0.95])
     with btn_c1:
         if st.button("➕ Movimiento", type="primary", use_container_width=True, key="fin_top_new_tx"):
             _open_new_transaction_dialog(user_id, currency, accounts, categories, budget_summary)
@@ -952,9 +1237,12 @@ def render_finance_view() -> None:
     with btn_c3:
         if st.button("🔄 + Suscripción", use_container_width=True, key="fin_top_new_sub"):
             _open_new_subscription_dialog(user_id, currency, accounts, categories)
+    with btn_c4:
+        if st.button("🏷️ Categorías", use_container_width=True, key="fin_top_mgr_cats"):
+            _open_category_manager_dialog(user_id, currency, categories)
 
     # Banner de generación rápida de Billetera Demo si aún no hay cuentas
-    if not accounts:
+    if not all_accounts:
         with st.container(border=True):
             st.markdown(
                 """
@@ -962,9 +1250,7 @@ def render_finance_view() -> None:
 👋 Tu Billetera Digital está vacía
 </div>
 <div style="font-size:0.82rem; color:#94A3B8; margin-bottom:10px;">
-Puedes agregar tus cuentas manualmente con el botón <b>💳 + Cuenta / TDC</b> o inicializar
-en 1 toque una billetera de prueba con 1 Cuenta de Débito y 2 Tarjetas de Crédito con distintas
-fechas de corte para probar de inmediato el Simulador Inteligente.
+Puedes agregar tus cuentas manualmente con el botón <b>💳 + Cuenta / TDC</b> o inicializar en 1 toque una billetera de prueba con 1 Cuenta de Débito y 2 Tarjetas de Crédito con distintas fechas de corte para probar de inmediato el Simulador Inteligente.
 </div>
 """,
                 unsafe_allow_html=True,
@@ -1021,7 +1307,7 @@ fechas de corte para probar de inmediato el Simulador Inteligente.
     tab_wallet, tab_flow, tab_calendar = st.tabs(
         [
             "💳 Billetera & Simulador TDC",
-            "💸 Flujo & Presupuestos",
+            "💸 Flujo, Categorías & Presupuestos",
             "📅 Calendario Financiero",
         ]
     )
@@ -1030,82 +1316,162 @@ fechas de corte para probar de inmediato el Simulador Inteligente.
     # TAB 1: BILLETERA DIGITAL TIPO APPLE WALLET & SIMULADOR TDC
     # =================================================================
     with tab_wallet:
-        st.markdown("#### 🪪 Tarjetas de Crédito (Apple Wallet View)")
+        st.markdown("#### 🪪 Tarjetas de Crédito Activas (Apple Wallet View)")
         if credit_cards:
             cols_cc = st.columns(min(2, len(credit_cards))) if len(credit_cards) > 1 else [st.container()]
             for idx, cc in enumerate(credit_cards):
                 target_col = cols_cc[idx % len(cols_cc)]
                 with target_col:
+                    cc_id = str(cc["id"])
                     c_day = int(cc.get("cutoff_day") or 15)
                     p_day = int(cc.get("payment_due_day") or 5)
+                    curr_theme = str(cc.get("card_gradient_theme", "indigo_neon"))
                     cycle_dates = calculate_card_cycle_dates(
                         cutoff_day=c_day,
                         payment_due_day=p_day,
                         purchase_date=today,
                     )
                     render_credit_card_widget(
-institution_name=str(cc.get("institution_name", "Banco")),
-alias=str(cc.get("name", "TDC")),
-last_four_digits=str(cc.get("last_four_digits", "0000")),
-current_balance=float(cc.get("current_balance") or 0.0),
-credit_limit=float(cc.get("credit_limit") or 0.0),
-cashback_pct=float(cc.get("cashback_pct") or 0.0),
-cutoff_day=c_day,
-payment_due_day=p_day,
-days_until_cutoff=cycle_dates.days_until_cutoff,
-days_until_payment=cycle_dates.days_until_payment_due,
-float_days_today=cycle_dates.float_days,
-interest_rate_cat=float(cc.get("interest_rate_cat") or 0.0),
-card_network=str(cc.get("card_network", "visa")),
-gradient_theme=str(cc.get("card_gradient_theme", "indigo_neon")),
-account_type="credit_card",
+                        institution_name=str(cc.get("institution_name", "Banco")),
+                        alias=str(cc.get("name", "TDC")),
+                        last_four_digits=str(cc.get("last_four_digits", "0000")),
+                        current_balance=float(cc.get("current_balance") or 0.0),
+                        credit_limit=float(cc.get("credit_limit") or 0.0),
+                        cashback_pct=float(cc.get("cashback_pct") or 0.0),
+                        cutoff_day=c_day,
+                        payment_due_day=p_day,
+                        days_until_cutoff=cycle_dates.days_until_cutoff,
+                        days_until_payment=cycle_dates.days_until_payment_due,
+                        float_days_today=cycle_dates.float_days,
+                        interest_rate_cat=float(cc.get("interest_rate_cat") or 0.0),
+                        card_network=str(cc.get("card_network", "visa")),
+                        gradient_theme=curr_theme,
+                        account_type="credit_card",
                     )
-                    with st.expander(f"⚙️ Ajustar saldo o eliminar · {cc['name']}"):
+                    with st.expander(f"⚙️ Ajustar saldo, carátula o archivar · {cc['name']}"):
                         new_bal = st.number_input(
                             f"Deuda actual en {cc['name']} ({currency})",
                             min_value=0.0,
                             value=float(cc.get("current_balance") or 0.0),
                             step=250.0,
-                            key=f"cc_adj_bal_{cc['id']}",
+                            key=f"cc_adj_bal_{cc_id}",
+                        )
+                        theme_keys = list(CARD_GRADIENTS.keys())
+                        t_idx = theme_keys.index(curr_theme) if curr_theme in theme_keys else 0
+                        new_theme = st.selectbox(
+                            "Carátula Apple Wallet",
+                            options=theme_keys,
+                            index=t_idx,
+                            format_func=lambda k: CARD_GRADIENTS[k]["label"],
+                            key=f"cc_theme_sel_{cc_id}",
                         )
                         c_b1, c_b2 = st.columns(2)
                         with c_b1:
-                            if st.button("Actualizar deuda", key=f"cc_save_bal_{cc['id']}", use_container_width=True):
-                                update_finance_account_balance(user_id, str(cc["id"]), float(new_bal))
-                                st.toast("Saldo de tarjeta actualizado.", icon="✅")
+                            if st.button("💾 Guardar cambios", key=f"cc_save_bal_{cc_id}", use_container_width=True):
+                                ok, msg = update_finance_account_details(
+                                    user_id=user_id,
+                                    account_id=cc_id,
+                                    new_balance=float(new_bal),
+                                    card_gradient_theme=new_theme,
+                                )
+                                st.toast(msg, icon="✅" if ok else "⚠️")
                                 st.rerun()
                         with c_b2:
-                            if st.button("Eliminar TDC", key=f"cc_del_{cc['id']}", use_container_width=True):
-                                delete_finance_account(user_id, str(cc["id"]))
+                            if st.button(
+                                "📦 Desactivar / Archivar",
+                                key=f"cc_archive_{cc_id}",
+                                use_container_width=True,
+                                help="Oculta esta tarjeta sin perder su historial de transacciones pasadas.",
+                            ):
+                                ok, msg = set_finance_account_active_status(user_id, cc_id, is_active=False)
+                                st.toast(msg, icon="📦")
                                 st.rerun()
         else:
-            st.info("No tienes tarjetas de crédito registradas todavía. Usa el botón superior «💳 + Cuenta / TDC».")
+            st.info("No tienes tarjetas de crédito activas. Usa el botón superior «💳 + Cuenta / TDC».")
 
         if liquid_accounts:
-            st.markdown("#### 🏦 Cuentas de Liquidez (Débito, Efectivo e Inversión)")
+            st.markdown("#### 🏦 Cuentas de Liquidez Activas (Débito, Efectivo e Inversión)")
             cols_liq = st.columns(min(2, len(liquid_accounts))) if len(liquid_accounts) > 1 else [st.container()]
             for idx, l_acc in enumerate(liquid_accounts):
                 with cols_liq[idx % len(cols_liq)]:
+                    l_id = str(l_acc["id"])
+                    l_theme = str(l_acc.get("card_gradient_theme", "deep_blue"))
                     render_credit_card_widget(
                         institution_name=str(l_acc.get("institution_name", "Banco")),
                         alias=str(l_acc.get("name", "Cuenta")),
                         last_four_digits=str(l_acc.get("last_four_digits", "0000")),
                         current_balance=float(l_acc.get("current_balance") or 0.0),
                         card_network=str(l_acc.get("card_network", "visa")),
-                        gradient_theme=str(l_acc.get("card_gradient_theme", "deep_blue")),
+                        gradient_theme=l_theme,
                         account_type=str(l_acc.get("account_type", "debit")),
                     )
-                    with st.expander(f"⚙️ Ajustar saldo · {l_acc['name']}"):
+                    with st.expander(f"⚙️ Ajustar saldo, carátula o archivar · {l_acc['name']}"):
                         new_lbal = st.number_input(
                             f"Saldo disponible ({currency})",
                             min_value=0.0,
                             value=float(l_acc.get("current_balance") or 0.0),
                             step=500.0,
-                            key=f"liq_adj_bal_{l_acc['id']}",
+                            key=f"liq_adj_bal_{l_id}",
                         )
-                        if st.button("Guardar saldo", key=f"liq_save_bal_{l_acc['id']}", use_container_width=True):
-                            update_finance_account_balance(user_id, str(l_acc["id"]), float(new_lbal))
-                            st.toast("Saldo actualizado.", icon="✅")
+                        theme_keys = list(CARD_GRADIENTS.keys())
+                        lt_idx = theme_keys.index(l_theme) if l_theme in theme_keys else 0
+                        new_ltheme = st.selectbox(
+                            "Carátula visual",
+                            options=theme_keys,
+                            index=lt_idx,
+                            format_func=lambda k: CARD_GRADIENTS[k]["label"],
+                            key=f"liq_theme_sel_{l_id}",
+                        )
+                        lc1, lc2 = st.columns(2)
+                        with lc1:
+                            if st.button("💾 Guardar cambios", key=f"liq_save_bal_{l_id}", use_container_width=True):
+                                ok, msg = update_finance_account_details(
+                                    user_id=user_id,
+                                    account_id=l_id,
+                                    new_balance=float(new_lbal),
+                                    card_gradient_theme=new_ltheme,
+                                )
+                                st.toast(msg, icon="✅" if ok else "⚠️")
+                                st.rerun()
+                        with lc2:
+                            if st.button(
+                                "📦 Desactivar / Archivar",
+                                key=f"liq_archive_{l_id}",
+                                use_container_width=True,
+                                help="Oculta esta cuenta de las vistas principales conservando su historial.",
+                            ):
+                                ok, msg = set_finance_account_active_status(user_id, l_id, is_active=False)
+                                st.toast(msg, icon="📦")
+                                st.rerun()
+
+        # ── Expander Colapsado de Cuentas Inactivas / Archivadas (Soft-Delete Req 1) ──
+        with st.expander(f"🗄️ Cuentas inactivas / archivadas ({len(inactive_accounts)})", expanded=False):
+            if not inactive_accounts:
+                st.caption("No tienes cuentas ni tarjetas archivadas en este momento.")
+            else:
+                st.caption(
+                    "Estas cuentas están ocultas de los selectores y de tu Apple Wallet principal, "
+                    "pero conservan intactas todas sus transacciones históricas."
+                )
+                for inacc in inactive_accounts:
+                    in_id = str(inacc["id"])
+                    in_type = ACCOUNT_TYPE_LABELS.get(str(inacc.get("account_type")), "Cuenta")
+                    in_bal = float(inacc.get("current_balance") or 0.0)
+                    ic1, ic2 = st.columns([3.5, 1.5], vertical_alignment="center")
+                    with ic1:
+                        st.markdown(
+                            f"""
+<div style="background:#121722; border:1px dashed #334155; border-radius:10px; padding:9px 12px; margin-bottom:6px;">
+<div style="font-size:0.88rem; font-weight:700; color:#CBD5E1;">🗄️ {inacc.get('name')} ({inacc.get('institution_name', 'Banco')})</div>
+<div style="font-size:0.75rem; color:#94A3B8;">{in_type} · •••• {str(inacc.get('last_four_digits', '0000'))[-4:]} · Saldo/Deuda: ${in_bal:,.2f}</div>
+</div>
+""",
+                            unsafe_allow_html=True,
+                        )
+                    with ic2:
+                        if st.button("♻️ Reactivar Cuenta", key=f"reactivate_acc_{in_id}", use_container_width=True):
+                            ok, msg = set_finance_account_active_status(user_id, in_id, is_active=True)
+                            st.toast(msg, icon="♻️")
                             st.rerun()
 
         st.divider()
@@ -1122,10 +1488,16 @@ account_type="credit_card",
         )
 
     # =================================================================
-    # TAB 2: FLUJO DE EFECTIVO, PRESUPUESTOS Y BITÁCORA DE MOVIMIENTOS
+    # TAB 2: FLUJO DE EFECTIVO, GESTOR DE CATEGORÍAS Y MOVIMIENTOS
     # =================================================================
     with tab_flow:
-        st.markdown("#### 📊 Cumplimiento de Presupuesto Mensual por Categoría")
+        hdr_c1, hdr_c2 = st.columns([2.4, 1.2], vertical_alignment="center")
+        with hdr_c1:
+            st.markdown("#### 📊 Cumplimiento de Presupuesto Mensual por Categoría")
+        with hdr_c2:
+            if st.button("🏷️ Crear / Editar Categorías", use_container_width=True, key="flow_btn_open_cat_mgr"):
+                _open_category_manager_dialog(user_id, currency, categories)
+
         cat_breakdown = budget_summary.get("categories_breakdown") or []
 
         if cat_breakdown:
@@ -1179,8 +1551,7 @@ account_type="credit_card",
 
                 st.markdown(
                     f"""
-<div style="background:#121722; border:1px solid #263044; border-radius:10px;
-padding:10px 12px; margin-bottom:8px;">
+<div style="background:#121722; border:1px solid #263044; border-radius:10px; padding:10px 12px; margin-bottom:8px;">
 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
 <span style="font-size:0.86rem; font-weight:700; color:#F8FAFC;">
 {row['icon']} {row['name']}
@@ -1197,7 +1568,7 @@ padding:10px 12px; margin-bottom:8px;">
                     unsafe_allow_html=True,
                 )
 
-            with st.expander("✏️ Configurar límites de presupuesto mensual por categoría"):
+            with st.expander("✏️ Configurar límites de presupuesto mensual o editar categorías"):
                 expense_categories = [c for c in categories if str(c.get("kind", "expense")) == "expense"]
                 for ec in expense_categories:
                     c_col1, c_col2 = st.columns([2, 1])
@@ -1216,6 +1587,16 @@ padding:10px 12px; margin-bottom:8px;">
                             st.toast(f"Presupuesto de {ec.get('name')} actualizado.", icon="✅")
                             st.rerun()
 
+                st.divider()
+                st.markdown("##### 📋 Catálogo Completo de Categorías (Gastos e Ingresos)")
+                for cat_item in categories:
+                    k_lbl = CATEGORY_KIND_LABELS.get(str(cat_item.get("kind", "expense")), "Gasto")
+                    st.caption(
+                        f"{cat_item.get('icon', '💳')} **{cat_item.get('name')}** — `{k_lbl}`"
+                    )
+                if st.button("🏷️ Abrir Gestor Integral de Categorías", key="btn_open_cat_mgr_in_exp", use_container_width=True):
+                    _open_category_manager_dialog(user_id, currency, categories)
+
         st.divider()
         st.markdown("#### 🧾 Historial Reciente de Transacciones")
         tx_filter = (
@@ -1229,7 +1610,8 @@ padding:10px 12px; margin-bottom:8px;">
             or "ALL"
         )
 
-        acc_by_id = {str(a["id"]): a for a in accounts}
+        # Usar todas las cuentas (incluyendo inactivas) para resolver nombres históricos sin fallos
+        acc_by_id = {str(a["id"]): a for a in all_accounts}
         cat_by_id = {str(c["id"]): c for c in categories}
 
         filtered_txs = [
@@ -1246,6 +1628,8 @@ padding:10px 12px; margin-bottom:8px;">
                 acc_obj = acc_by_id.get(str(tx.get("account_id")), {})
                 cat_obj = cat_by_id.get(str(tx.get("category_id")), {})
                 acc_name = acc_obj.get("name", "Cuenta")
+                if acc_obj and not bool(acc_obj.get("is_active", True)):
+                    acc_name = f"{acc_name} (Archivada)"
                 cat_name = cat_obj.get("name", "Transferencia / Pago")
                 cat_icon = cat_obj.get("icon", "💳" if t_type == "cc_payment" else "🔄")
                 concept = tx.get("merchant_or_concept") or cat_name
@@ -1260,20 +1644,17 @@ padding:10px 12px; margin-bottom:8px;">
                 )
                 amt_prefix = "+" if t_type == "income" else ("⇄ " if t_type in ("cc_payment", "transfer") else "-")
                 msi_badge = (
-                    f"<span style='background:#3B82F622; color:#60A5FA; border:1px solid #3B82F655; "
-                    f"padding:1px 6px; border-radius:999px; font-size:0.68rem; margin-left:6px;'>{msi} MSI</span>"
+                    f"<span style='background:#3B82F622; color:#60A5FA; border:1px solid #3B82F655; padding:1px 6px; border-radius:999px; font-size:0.68rem; margin-left:6px;'>{msi} MSI</span>"
                     if msi > 1
                     else ""
                 )
                 cb_badge = (
-                    f"<span style='background:#10B98122; color:#10B981; border:1px solid #10B98155; "
-                    f"padding:1px 6px; border-radius:999px; font-size:0.68rem; margin-left:6px;'>+${cb_tx:,.2f} CB</span>"
+                    f"<span style='background:#10B98122; color:#10B981; border:1px solid #10B98155; padding:1px 6px; border-radius:999px; font-size:0.68rem; margin-left:6px;'>+${cb_tx:,.2f} CB</span>"
                     if cb_tx > 0
                     else ""
                 )
                 tags_html = "".join(
-                    f"<span style='background:#1E293B; color:#94A3B8; padding:1px 6px; "
-                    f"border-radius:999px; font-size:0.66rem; margin-right:4px;'>#{tg}</span>"
+                    f"<span style='background:#1E293B; color:#94A3B8; padding:1px 6px; border-radius:999px; font-size:0.66rem; margin-right:4px;'>#{tg}</span>"
                     for tg in tags
                 )
 
@@ -1281,8 +1662,7 @@ padding:10px 12px; margin-bottom:8px;">
                 with col_tx_card:
                     st.markdown(
                         f"""
-<div style="background:#121722; border:1px solid #263044; border-radius:10px;
-padding:10px 12px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
+<div style="background:#121722; border:1px solid #263044; border-radius:10px; padding:10px 12px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
 <div>
 <div style="font-size:0.88rem; font-weight:700; color:#F8FAFC;">
 {cat_icon} {concept} {msi_badge} {cb_badge}
@@ -1306,14 +1686,36 @@ padding:10px 12px; margin-bottom:6px; display:flex; justify-content:space-betwee
                         st.rerun()
 
     # =================================================================
-    # TAB 3: CALENDARIO FINANCIERO INTERACTIVO Y SUSCRIPCIONES
+    # TAB 3: CALENDARIO FINANCIERO CON FILTROS INTELIGENTES Y SUSCRIPCIONES
     # =================================================================
     with tab_calendar:
         st.markdown("#### 🗓️ Calendario Financiero Interactivo")
         st.caption(
             "Mapea automáticamente: 🔵 Fechas de Corte TDC · 🔴 Fechas Límite de Pago · "
-            "🟣 Suscripciones Recurrentes · 🟢 Ingresos."
+            "🟣 Suscripciones Recurrentes · 🏠 Servicios del Hogar · 🟢 Ingresos."
         )
+
+        # ── Barra Superior de Filtros Inteligentes (Requerimiento 6) ──
+        if hasattr(st, "pills"):
+            selected_cal_filter = (
+                st.pills(
+                    "Filtro inteligente de agenda",
+                    options=CALENDAR_FILTER_OPTIONS,
+                    default="Todos",
+                    key="fin_cal_smart_filter_pills",
+                )
+                or "Todos"
+            )
+        else:
+            selected_cal_filter = (
+                st.segmented_control(
+                    "Filtro inteligente de agenda",
+                    options=CALENDAR_FILTER_OPTIONS,
+                    default="Todos",
+                    key="fin_cal_smart_filter_seg",
+                )
+                or "Todos"
+            )
 
         col_ym1, col_ym2 = st.columns(2)
         with col_ym1:
@@ -1332,29 +1734,31 @@ padding:10px 12px; margin-bottom:6px; display:flex; justify-content:space-betwee
                 key="fin_cal_year",
             )
 
-        cal_data = build_financial_calendar_events(
+        raw_cal_data = build_financial_calendar_events(
             accounts=accounts,
             subscriptions=subscriptions,
             transactions=transactions,
             year=int(cal_year),
             month=int(cal_month),
+            categories=categories,
+        )
+        cal_data = filter_financial_calendar_events(
+            cal_data=raw_cal_data,
+            filter_option=selected_cal_filter,
         )
         events_by_day: Dict[int, List[Dict[str, Any]]] = cal_data.get("events_by_day") or {}
         upcoming_14d: List[Dict[str, Any]] = cal_data.get("upcoming_14d") or []
 
-        # Radar de próximos 14 días
+        # Radar de próximos 14 días (filtrado instantáneamente)
         if upcoming_14d:
-            st.markdown("##### ⚡ Radar de Vencimientos y Cortes (Próximos 14 Días)")
+            st.markdown(f"##### ⚡ Radar Próximos 14 Días · Filtro: `{selected_cal_filter}`")
             for up in upcoming_14d[:5]:
                 up_col = up.get("color", "#3B82F6")
                 d_left = int(up.get("days_left") or 0)
                 when_txt = "HOY" if d_left == 0 else f"En {d_left} día(s)"
                 st.markdown(
                     f"""
-<div style="background:#121722; border-left:4px solid {up_col}; border-top:1px solid #263044;
-border-right:1px solid #263044; border-bottom:1px solid #263044;
-border-radius:10px; padding:8px 12px; margin-bottom:6px;
-display:flex; justify-content:space-between; align-items:center;">
+<div style="background:#121722; border-left:4px solid {up_col}; border-top:1px solid #263044; border-right:1px solid #263044; border-bottom:1px solid #263044; border-radius:10px; padding:8px 12px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
 <div>
 <span style="font-size:0.70rem; font-weight:700; color:{up_col};">{up['badge']} · {when_txt}</span>
 <div style="font-size:0.86rem; font-weight:700; color:#F8FAFC;">{up['title']}</div>
@@ -1372,18 +1776,18 @@ ${float(up.get('amount') or 0):,.2f}
         weekdays_header = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
 
         grid_html = [
-"<div style='display:grid; grid-template-columns:repeat(7, minmax(0, 1fr)); gap:5px; margin:10px 0 14px 0;'>"
+            "<div style='display:grid; grid-template-columns:repeat(7, minmax(0, 1fr)); gap:5px; margin:10px 0 14px 0;'>"
         ]
         for wd in weekdays_header:
             grid_html.append(
-f"<div style='text-align:center; font-size:0.70rem; font-weight:700; color:#94A3B8; padding:4px 0;'>{wd}</div>"
+                f"<div style='text-align:center; font-size:0.70rem; font-weight:700; color:#94A3B8; padding:4px 0;'>{wd}</div>"
             )
 
         for week in cal_matrix:
             for day_num in week:
                 if day_num == 0:
                     grid_html.append(
-"<div style='background:rgba(18,23,34,0.35); border:1px dashed #1E293B; border-radius:8px; min-height:66px;'></div>"
+                        "<div style='background:rgba(18,23,34,0.35); border:1px dashed #1E293B; border-radius:8px; min-height:66px;'></div>"
                     )
                 else:
                     is_today = (
@@ -1400,46 +1804,45 @@ f"<div style='text-align:center; font-size:0.70rem; font-weight:700; color:#94A3
                         ev_color = ev.get("color", "#94A3B8")
                         ev_badge = ev.get("badge", "•")
                         pills_html += (
-f"<div style='font-size:0.58rem; background:{ev_color}22; color:{ev_color}; "
-f"border-left:2px solid {ev_color}; border-radius:3px; padding:1px 3px; "
-f"margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;'>"
-f"{ev_badge}</div>"
+                            f"<div style='font-size:0.58rem; background:{ev_color}22; color:{ev_color}; "
+                            f"border-left:2px solid {ev_color}; border-radius:3px; padding:1px 3px; "
+                            f"margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;'>"
+                            f"{ev_badge}</div>"
                         )
                     if len(day_evs) > 3:
                         pills_html += (
-f"<div style='font-size:0.58rem; color:#94A3B8; margin-top:1px;'>+{len(day_evs) - 3} más</div>"
+                            f"<div style='font-size:0.58rem; color:#94A3B8; margin-top:1px;'>+{len(day_evs) - 3} más</div>"
                         )
 
                     grid_html.append(
-f"<div style='background:{bg_col}; border:1px solid {border_col}; border-radius:8px; "
-f"padding:4px 5px; min-height:66px; display:flex; flex-direction:column; justify-content:space-between;'>"
-f"<div style='font-family:JetBrains Mono, monospace; font-size:0.72rem; font-weight:700; "
-f"color:{'#60A5FA' if is_today else '#F8FAFC'};'>{day_num}</div>"
-f"<div>{pills_html}</div>"
-f"</div>"
+                        f"<div style='background:{bg_col}; border:1px solid {border_col}; border-radius:8px; "
+                        f"padding:4px 5px; min-height:66px; display:flex; flex-direction:column; justify-content:space-between;'>"
+                        f"<div style='font-family:JetBrains Mono, monospace; font-size:0.72rem; font-weight:700; "
+                        f"color:{'#60A5FA' if is_today else '#F8FAFC'};'>{day_num}</div>"
+                        f"<div>{pills_html}</div>"
+                        f"</div>"
                     )
         grid_html.append("</div>")
         st.markdown("".join(grid_html), unsafe_allow_html=True)
 
         # Lista detallada cronológica de eventos del mes seleccionado
-        st.markdown(f"#### 📌 Agenda del Mes ({SPANISH_MONTHS[int(cal_month) - 1]} {cal_year})")
+        st.markdown(
+            f"#### 📌 Agenda del Mes ({SPANISH_MONTHS[int(cal_month) - 1]} {cal_year}) · `{selected_cal_filter}`"
+        )
         flat_month_events = []
         for d_num in sorted(events_by_day.keys()):
             for ev in events_by_day[d_num]:
                 flat_month_events.append(ev)
 
         if not flat_month_events:
-            st.caption("No hay cortes de tarjeta ni pagos recurrentes programados en este mes.")
+            st.caption(f"No hay eventos para el filtro «{selected_cal_filter}» en este mes.")
         else:
             for ev in flat_month_events:
                 ev_col = ev.get("color", "#10B981")
                 amt_val = float(ev.get("amount") or 0.0)
                 st.markdown(
                     f"""
-<div style="background:#121722; border-left:4px solid {ev_col}; border-top:1px solid #263044;
-border-right:1px solid #263044; border-bottom:1px solid #263044;
-border-radius:10px; padding:10px 12px; margin-bottom:7px;
-display:flex; justify-content:space-between; align-items:center;">
+<div style="background:#121722; border-left:4px solid {ev_col}; border-top:1px solid #263044; border-right:1px solid #263044; border-bottom:1px solid #263044; border-radius:10px; padding:10px 12px; margin-bottom:7px; display:flex; justify-content:space-between; align-items:center;">
 <div>
 <div style="font-size:0.86rem; font-weight:700; color:#F8FAFC;">
 {ev['badge']} · {ev['title']}
@@ -1457,7 +1860,7 @@ ${amt_val:,.2f}
                 )
 
         st.divider()
-        st.markdown("#### 🔄 Suscripciones y Cargos Recurrentes Activos")
+        st.markdown("#### 🔄 Suscripciones y Cargos Recurrentes Activos (Editables)")
         if not subscriptions:
             st.caption("Aún no tienes suscripciones activas. Usa el botón «🔄 + Suscripción» para programarlas.")
         else:
@@ -1471,12 +1874,16 @@ ${amt_val:,.2f}
                     monthly_fixed_total += amt_s / 12.0
                 elif cyc_s == "weekly":
                     monthly_fixed_total += amt_s * 4.33
+                elif cyc_s == "biweekly":
+                    monthly_fixed_total += amt_s * 2.165
+                elif cyc_s == "bimonthly":
+                    monthly_fixed_total += amt_s / 2.0
+                elif cyc_s == "quarterly":
+                    monthly_fixed_total += amt_s / 3.0
 
             st.markdown(
                 f"""
-<div style="background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.35);
-border-radius:10px; padding:10px 12px; margin-bottom:10px;
-display:flex; justify-content:space-between; align-items:center;">
+<div style="background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.35); border-radius:10px; padding:10px 12px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
 <span style="font-size:0.82rem; color:#DDD6FE;">Costo mensualizado de suscripciones fijas:</span>
 <span style="font-family:'JetBrains Mono', monospace; font-size:0.95rem; font-weight:700; color:#A78BFA;">
 ${monthly_fixed_total:,.2f} / mes (${monthly_fixed_total * 12:,.0f} / año)
@@ -1486,20 +1893,27 @@ ${monthly_fixed_total:,.2f} / mes (${monthly_fixed_total * 12:,.0f} / año)
                 unsafe_allow_html=True,
             )
 
+            acc_lookup = {str(a["id"]): a.get("name", "Cuenta") for a in all_accounts}
+            cat_lookup = {str(c["id"]): f"{c.get('icon', '🔄')} {c.get('name', '')}" for c in categories}
+
             for sub in subscriptions:
                 sub_id = str(sub["id"])
                 s_name = str(sub.get("service_name", "Suscripción"))
                 s_amt = float(sub.get("amount") or 0.0)
                 s_day = int(sub.get("billing_day_of_month") or 1)
-                c1, c2 = st.columns([4.5, 1])
+                s_next = str(sub.get("next_billing_date") or "")[:10]
+                s_acc_lbl = acc_lookup.get(str(sub.get("account_id") or ""), "Sin cuenta asignada")
+                s_cat_lbl = cat_lookup.get(str(sub.get("category_id") or ""), "General")
+                cyc_lbl = BILLING_CYCLE_LABELS.get(str(sub.get("billing_cycle")), "Mensual")
+
+                c1, c_edit, c_del = st.columns([4.2, 0.85, 0.85], vertical_alignment="center")
                 with c1:
                     st.markdown(
                         f"""
-<div style="background:#121722; border:1px solid #263044; border-radius:10px;
-padding:9px 12px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
+<div style="background:#121722; border:1px solid #263044; border-radius:10px; padding:9px 12px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
 <div>
 <div style="font-size:0.86rem; font-weight:700; color:#F8FAFC;">🟣 {s_name}</div>
-<div style="font-size:0.74rem; color:#94A3B8;">Día {s_day} de cada mes ({BILLING_CYCLE_LABELS.get(str(sub.get('billing_cycle')), 'Mensual')})</div>
+<div style="font-size:0.74rem; color:#94A3B8;">Día {s_day} ({cyc_lbl} · Próx: {s_next}) · <b>{s_acc_lbl}</b> · {s_cat_lbl}</div>
 </div>
 <div style="font-family:'JetBrains Mono', monospace; font-size:0.92rem; font-weight:700; color:#A78BFA;">
 ${s_amt:,.2f}
@@ -1508,7 +1922,16 @@ ${s_amt:,.2f}
 """,
                         unsafe_allow_html=True,
                     )
-                with c2:
-                    if st.button("🗑️", key=f"del_sub_{sub_id}", help="Cancelar suscripción"):
+                with c_edit:
+                    if st.button("✏️", key=f"edit_sub_{sub_id}", help="Editar suscripción", use_container_width=True):
+                        _open_edit_subscription_dialog(
+                            user_id=user_id,
+                            currency=currency,
+                            subscription=sub,
+                            accounts=accounts or all_accounts,
+                            categories=categories,
+                        )
+                with c_del:
+                    if st.button("🗑️", key=f"del_sub_{sub_id}", help="Cancelar suscripción", use_container_width=True):
                         delete_finance_subscription(user_id, sub_id)
                         st.rerun()

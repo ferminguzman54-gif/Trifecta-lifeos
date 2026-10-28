@@ -39,6 +39,26 @@ BILLING_CYCLE_LABELS: Dict[str, str] = {
     "yearly": "Anual",
 }
 
+CATEGORY_KIND_LABELS: Dict[str, str] = {
+    "expense": "💸 Gasto / Egreso",
+    "income": "💰 Ingreso / Entrada",
+    "transfer": "🔄 Transferencia / Pago TDC",
+}
+
+COMMON_CATEGORY_EMOJIS: List[str] = [
+    "🛒", "🏠", "🚗", "🍽️", "💪", "📱", "🛍️", "📚",
+    "💰", "🚀", "📈", "💳", "⚡", "💡", "💧", "🌐",
+    "🏥", "✈️", "🎬", "🐾", "🎁", "🧾", "🏦", "🔄",
+]
+
+CALENDAR_FILTER_OPTIONS: List[str] = [
+    "Todos",
+    "Solo Cortes TDC",
+    "Solo Fechas de Pago",
+    "Solo Suscripciones",
+    "Solo Servicios del Hogar",
+]
+
 
 class FinanceAccountModel(BaseModel):
     id: Optional[str] = None

@@ -23,6 +23,7 @@ from src.models.workout_models import (
     WorkoutRoutineItemModel,
     WorkoutRoutineModel,
     WorkoutSetModel,
+    WorkoutWeeklyPlanModel,
 )
 
 # Soporte extendido de horizontes temporales (incluye alias 7D, 14D y YTD)
@@ -720,6 +721,7 @@ def clear_workout_cache() -> None:
     fetch_workout_routine_items.clear()
     fetch_workout_sessions.clear()
     fetch_workout_sets.clear()
+    fetch_weekly_workout_plan.clear()
     try:
         from src.views.home_hub_view import _fetch_hub_summary_counts
         _fetch_hub_summary_counts.clear()
@@ -787,6 +789,7 @@ def create_custom_exercise(
     primary_muscle: str,
     secondary_muscles: List[str],
     movement_pattern: str = "compound",
+    notes: str = "",
 ) -> Tuple[bool, str]:
     """Crea un ejercicio personalizado para el usuario con ponderación 1.0 primario / 0.5 secundario."""
     try:
@@ -798,13 +801,66 @@ def create_custom_exercise(
             primary_muscle=primary_muscle,  # type: ignore[arg-type]
             secondary_muscles=[m for m in secondary_muscles if m != primary_muscle],  # type: ignore[misc]
             movement_pattern=movement_pattern,  # type: ignore[arg-type]
+            notes=notes.strip(),
         )
+        payload = validated.model_dump(exclude={"id"})
         client = get_supabase_client(access_token=access_token)
-        client.table("exercises").insert(validated.model_dump(exclude={"id"})).execute()
+        try:
+            client.table("exercises").insert(payload).execute()
+        except Exception:
+            legacy_payload = {k: v for k, v in payload.items() if k != "notes"}
+            client.table("exercises").insert(legacy_payload).execute()
         clear_workout_cache()
         return True, f"Ejercicio «{validated.name}» agregado al catálogo."
     except Exception as exc:
         return False, f"Error al crear ejercicio: {exc}"
+
+
+def update_exercise_in_catalog(
+    user_id: str,
+    exercise_id: str,
+    name: str,
+    equipment: str,
+    primary_muscle: str,
+    secondary_muscles: List[str],
+    movement_pattern: str = "compound",
+    notes: str = "",
+) -> Tuple[bool, str]:
+    """
+    Actualiza un ejercicio ya registrado en `public.exercises` conservando su `id` (UUID)
+    para no romper la integridad referencial ni el historial de `workout_sets` pasados.
+    """
+    try:
+        access_token = st.session_state.get("access_token") or ""
+        validated = ExerciseModel(
+            id=exercise_id,
+            user_id=user_id,
+            name=name.strip(),
+            equipment=equipment,  # type: ignore[arg-type]
+            primary_muscle=primary_muscle,  # type: ignore[arg-type]
+            secondary_muscles=[m for m in secondary_muscles if m != primary_muscle],  # type: ignore[misc]
+            movement_pattern=movement_pattern,  # type: ignore[arg-type]
+            notes=notes.strip(),
+        )
+        payload = {
+            "name": validated.name,
+            "equipment": validated.equipment,
+            "primary_muscle": validated.primary_muscle,
+            "secondary_muscles": validated.secondary_muscles,
+            "movement_pattern": validated.movement_pattern,
+            "notes": validated.notes,
+        }
+        client = get_supabase_client(access_token=access_token)
+        try:
+            client.table("exercises").update(payload).eq("id", exercise_id).execute()
+        except Exception:
+            legacy_payload = {k: v for k, v in payload.items() if k != "notes"}
+            client.table("exercises").update(legacy_payload).eq("id", exercise_id).execute()
+
+        clear_workout_cache()
+        return True, f"Ejercicio «{validated.name}» actualizado sin afectar tu historial de sets."
+    except Exception as exc:
+        return False, f"Error al actualizar el ejercicio: {exc}"
 
 
 def create_workout_routine_with_items(
@@ -882,6 +938,286 @@ def delete_workout_routine(user_id: str, routine_id: str) -> Tuple[bool, str]:
         return True, "Rutina eliminada."
     except Exception as exc:
         return False, f"Error al eliminar rutina: {exc}"
+
+
+def duplicate_workout_routine(
+    user_id: str,
+    routine_id: str,
+) -> Tuple[bool, str]:
+    """
+    Clona cualquier rutina existente con un solo clic, creando una copia independiente
+    llamada «[Nombre Original] (Copia)» en Supabase con todos sus ejercicios y parámetros precargados.
+    """
+    try:
+        access_token = st.session_state.get("access_token") or ""
+        routines = fetch_workout_routines(user_id, access_token)
+        all_items = fetch_workout_routine_items(user_id, access_token)
+
+        src_routine = next((r for r in routines if str(r.get("id")) == str(routine_id)), None)
+        if not src_routine:
+            return False, "No se encontró la rutina origen para duplicar."
+
+        orig_name = str(src_routine.get("name") or "Rutina").strip()
+        copy_name = f"{orig_name} (Copia)"[:100]
+        src_desc = str(src_routine.get("description") or "")
+        src_color = str(src_routine.get("accent_color") or "#FF5500")
+
+        src_items = [
+            it for it in all_items if str(it.get("routine_id")) == str(routine_id)
+        ]
+        src_items.sort(key=lambda x: int(x.get("order_index") or 1))
+
+        cloned_items_payload = [
+            {
+                "exercise_id": str(it["exercise_id"]),
+                "target_sets": int(it.get("target_sets") or 3),
+                "target_rep_min": int(it.get("target_rep_min") or 8),
+                "target_rep_max": int(it.get("target_rep_max") or 12),
+                "target_rpe": float(it.get("target_rpe") or 8.0),
+                "progression_step_kg": float(it.get("progression_step_kg") or 2.5),
+                "default_rest_seconds": int(it.get("default_rest_seconds") or 90),
+                "notes": str(it.get("notes") or ""),
+            }
+            for it in src_items
+        ]
+
+        ok, _ = create_workout_routine_with_items(
+            user_id=user_id,
+            name=copy_name,
+            description=src_desc,
+            accent_color=src_color,
+            items=cloned_items_payload,
+        )
+        if ok:
+            return True, f"Rutina duplicada como «{copy_name}» ({len(cloned_items_payload)} ejercicios)."
+        return False, "No se pudo duplicar la rutina."
+    except Exception as exc:
+        return False, f"Error al duplicar rutina: {exc}"
+
+
+def update_workout_routine_with_items(
+    user_id: str,
+    routine_id: str,
+    name: str,
+    description: str,
+    accent_color: str,
+    items: List[Dict[str, Any]],
+) -> Tuple[bool, str]:
+    """
+    Actualiza el encabezado de una plantilla de rutina y sincroniza su lista de ejercicios
+    (ordenados mediante `order_index`, permitiendo intercalar, reordenar, editar series/descanso
+    o retirar ejercicios sin afectar otras rutinas ni sesiones pasadas).
+    """
+    try:
+        access_token = st.session_state.get("access_token") or ""
+        client = get_supabase_client(access_token=access_token)
+
+        client.table("workout_routines").update(
+            {
+                "name": name.strip() or "Rutina",
+                "description": description.strip(),
+                "accent_color": accent_color or "#FF5500",
+            }
+        ).eq("id", routine_id).eq("user_id", user_id).execute()
+
+        # Reemplazar los items de esta rutina con los nuevos items en el orden exacto
+        client.table("workout_routine_items").delete().eq("routine_id", routine_id).eq(
+            "user_id", user_id
+        ).execute()
+
+        item_rows = []
+        for idx, it in enumerate(items, start=1):
+            r_min = max(1, int(it.get("target_rep_min", 8)))
+            r_max = max(r_min, int(it.get("target_rep_max", 12)))
+            validated_it = WorkoutRoutineItemModel(
+                user_id=user_id,
+                routine_id=routine_id,
+                exercise_id=str(it["exercise_id"]),
+                order_index=idx,
+                target_sets=max(1, min(15, int(it.get("target_sets", 3)))),
+                target_rep_min=r_min,
+                target_rep_max=r_max,
+                target_rpe=min(10.0, max(5.0, float(it.get("target_rpe", 8.0)))),
+                progression_step_kg=max(0.5, float(it.get("progression_step_kg", 2.5))),
+                default_rest_seconds=min(900, max(10, int(it.get("default_rest_seconds", 90)))),
+                notes=str(it.get("notes", "")),
+            )
+            item_rows.append(validated_it.model_dump(exclude={"id"}))
+
+        if item_rows:
+            try:
+                client.table("workout_routine_items").insert(item_rows).execute()
+            except Exception:
+                fallback_rows = [
+                    {k: v for k, v in row.items() if k != "default_rest_seconds"}
+                    for row in item_rows
+                ]
+                client.table("workout_routine_items").insert(fallback_rows).execute()
+
+        clear_workout_cache()
+        return True, f"Plantilla «{name.strip()}» actualizada ({len(item_rows)} ejercicios en orden)."
+    except Exception as exc:
+        return False, f"Error al actualizar la rutina: {exc}"
+
+
+def move_routine_item_order(
+    user_id: str,
+    routine_id: str,
+    item_index: int,
+    direction: Literal["up", "down"],
+) -> Tuple[bool, str]:
+    """
+    Mueve un ejercicio una posición arriba ('up') o abajo ('down') dentro de una rutina
+    y persiste el nuevo `order_index` en Supabase.
+    """
+    try:
+        access_token = st.session_state.get("access_token") or ""
+        all_items = fetch_workout_routine_items(user_id, access_token)
+        r_items = [it for it in all_items if str(it.get("routine_id")) == str(routine_id)]
+        r_items.sort(key=lambda x: int(x.get("order_index") or 1))
+
+        if not r_items or item_index < 0 or item_index >= len(r_items):
+            return False, "Posición fuera de rango."
+
+        target_idx = item_index - 1 if direction == "up" else item_index + 1
+        if target_idx < 0 or target_idx >= len(r_items):
+            return False, "El ejercicio ya está en el extremo de la rutina."
+
+        r_items[item_index], r_items[target_idx] = r_items[target_idx], r_items[item_index]
+
+        client = get_supabase_client(access_token=access_token)
+        for new_pos, row in enumerate(r_items, start=1):
+            if row.get("id"):
+                client.table("workout_routine_items").update({"order_index": new_pos}).eq(
+                    "id", str(row["id"])
+                ).eq("user_id", user_id).execute()
+
+        clear_workout_cache()
+        return True, "Orden de ejercicios actualizado."
+    except Exception as exc:
+        return False, f"Error al reordenar ejercicio: {exc}"
+
+
+# ============================================================================
+# 6. PLANIFICADOR SEMANAL DE ENTRENAMIENTOS (CALENDARIO / AGENDA SEMANAL)
+# ============================================================================
+
+def get_monday_of_week(ref_date: Optional[date] = None) -> date:
+    """Retorna el lunes (inicio de semana) correspondiente a `ref_date`."""
+    d = ref_date or date.today()
+    return d - timedelta(days=d.weekday())
+
+
+@st.cache_data(ttl=180)
+def fetch_weekly_workout_plan(
+    user_id: str,
+    access_token: str,
+    week_start_iso: str,
+) -> List[Dict[str, Any]]:
+    """
+    Consulta los entrenamientos planificados para la semana que inicia en `week_start_iso`.
+    Si la tabla `workout_weekly_plan` aún no existe en Supabase, retorna lista vacía
+    (la vista combina con el respaldo en `st.session_state`).
+    """
+    if not user_id or not access_token:
+        return []
+    try:
+        start_d = date.fromisoformat(week_start_iso[:10])
+    except ValueError:
+        start_d = get_monday_of_week()
+    end_d = start_d + timedelta(days=6)
+
+    try:
+        client = get_supabase_client(access_token=access_token)
+        res = (
+            client.table("workout_weekly_plan")
+            .select("*")
+            .eq("user_id", user_id)
+            .gte("plan_date", start_d.isoformat())
+            .lte("plan_date", end_d.isoformat())
+            .order("plan_date", desc=False)
+            .execute()
+        )
+        return res.data or []
+    except Exception:
+        return []
+
+
+def upsert_weekly_workout_plan_day(
+    user_id: str,
+    plan_date: date,
+    focus_title: str,
+    routine_id: Optional[str] = None,
+    status: str = "planned",
+    notes: str = "",
+) -> Tuple[bool, str]:
+    """
+    Guarda o actualiza la planificación de entrenamiento para una fecha específica
+    en `public.workout_weekly_plan` (con respaldo automático en `st.session_state`).
+    """
+    try:
+        access_token = st.session_state.get("access_token") or ""
+        validated = WorkoutWeeklyPlanModel(
+            user_id=user_id,
+            plan_date=plan_date,
+            day_of_week=plan_date.weekday(),
+            focus_title=focus_title.strip() or "Entrenamiento",
+            routine_id=routine_id if routine_id else None,
+            status=status,  # type: ignore[arg-type]
+            notes=notes.strip(),
+        )
+        payload = validated.model_dump(exclude={"id"})
+        payload["plan_date"] = validated.plan_date.isoformat()
+        payload["updated_at"] = datetime.now(timezone.utc).isoformat()
+
+        # Guardar siempre en respaldo de sesión y en Supabase
+        local_store: Dict[str, Dict[str, Any]] = st.session_state.setdefault(
+            "local_weekly_workout_plan", {}
+        )
+        local_store[payload["plan_date"]] = payload
+
+        if access_token:
+            try:
+                client = get_supabase_client(access_token=access_token)
+                client.table("workout_weekly_plan").upsert(
+                    payload,
+                    on_conflict="user_id,plan_date",
+                ).execute()
+            except Exception:
+                pass
+
+        clear_workout_cache()
+        return True, f"Plan del {plan_date.strftime('%d/%m/%Y')} guardado ({validated.focus_title})."
+    except Exception as exc:
+        return False, f"Error al guardar en el planificador semanal: {exc}"
+
+
+def delete_weekly_workout_plan_day(
+    user_id: str,
+    plan_date: date,
+) -> Tuple[bool, str]:
+    """Elimina la programación de un día en el planificador semanal."""
+    try:
+        access_token = st.session_state.get("access_token") or ""
+        iso_d = plan_date.isoformat()
+        local_store: Dict[str, Dict[str, Any]] = st.session_state.setdefault(
+            "local_weekly_workout_plan", {}
+        )
+        local_store.pop(iso_d, None)
+
+        if access_token:
+            try:
+                client = get_supabase_client(access_token=access_token)
+                client.table("workout_weekly_plan").delete().eq("user_id", user_id).eq(
+                    "plan_date", iso_d
+                ).execute()
+            except Exception:
+                pass
+
+        clear_workout_cache()
+        return True, f"Día {plan_date.strftime('%d/%m')} limpiado del planificador."
+    except Exception as exc:
+        return False, f"Error al limpiar día del planificador: {exc}"
 
 
 def seed_starter_routines_for_user(
